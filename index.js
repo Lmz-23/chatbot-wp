@@ -1,68 +1,49 @@
 require('dotenv').config();
 const express = require('express');
-const axios = require('axios');
+const logger = require('./utils/logger');
+const db = require('./db');
 
 const app = express();
-
 app.use(express.json());
 
+// Mount routes
+app.use('/webhook', require('./routes/webhook'));
+app.use('/', require('./routes/test-whatsapp'));
 
-const PORT = process.env.PORT;
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
+// Health
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-app.get('/webhook', (req, res) => {
-    const mode = req.query['hub.mode'];
-    const token = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
+const PORT = process.env.PORT || 3000;
 
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-        console.log('Webhook verificado');
-        res.status(200).send(challenge);
-    } else {
-        console.log('Verificación fallida');
-        res.sendStatus(403);
-    }
-});
+async function start() {
+  try {
+    // Initialize DB schema (idempotent). In production use proper migrations.
+    if (db.init) await db.init().catch((e) => logger.warn('db_init_warn', { err: e.message || e }));
 
-app.post('/webhook', async (req, res) => {
-    try {
-        const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const server = app.listen(PORT, () => {
+      logger.info('server_started', { port: PORT });
+    });
 
-        if (message) {
-            const from = message.from;
-            const text = message.text?.body;
+    // Graceful shutdown
+    const shutdown = async () => {
+      logger.info('shutdown_signal_received');
+      server.close(() => logger.info('http_server_closed'));
+      if (db.pool && db.pool.end) await db.pool.end().catch(() => {});
+      process.exit(0);
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 
-            console.log("Mensaje recibido:", text);
+    process.on('unhandledRejection', (reason) =>
+      logger.error('unhandled_rejection', { reason: reason && reason.message ? reason.message : reason })
+    );
+    process.on('uncaughtException', (err) =>
+      logger.error('uncaught_exception', { err: err && err.message ? err.message : err })
+    );
+  } catch (err) {
+    logger.error('startup_failed', { err: err && err.message ? err.message : err });
+    process.exit(1);
+  }
+}
 
-            await axios.post(
-                `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
-                {
-                    messaging_product: "whatsapp",
-                    to: from,
-                    text: { body: "Recibí tu mensaje: " + text }
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-                        "Content-Type": "application/json"
-                    }
-                }
-            );
-        }
-
-        res.sendStatus(200);
-    } catch (error) {
-        console.error(error.response?.data || error.message);
-        res.sendStatus(500);
-    }
-});
-
-// Importar y usar la ruta de prueba de WhatsApp
-const testWhatsappRouter = require('./routes/test-whatsapp');
-app.use(testWhatsappRouter);
-
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+start();
