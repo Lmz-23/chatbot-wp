@@ -15,6 +15,7 @@ app.get('/webhook', (req, res) => {
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
 
+    console.log("MODE:", mode);
     console.log("TOKEN RECIBIDO:", token);
     console.log("TOKEN EN SERVIDOR:", VERIFY_TOKEN);
 
@@ -22,6 +23,7 @@ app.get('/webhook', (req, res) => {
         console.log('Webhook verificado');
         res.status(200).send(challenge);
     } else {
+        console.log('Verificación fallida');
         res.sendStatus(403);
     }
 });
