@@ -3,7 +3,9 @@ const express = require('express');
 const axios = require('axios');
 
 const app = express();
+
 app.use(express.json());
+
 
 const PORT = process.env.PORT;
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
@@ -14,10 +16,6 @@ app.get('/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-
-    console.log("MODE:", mode);
-    console.log("TOKEN RECIBIDO:", token);
-    console.log("TOKEN EN SERVIDOR:", VERIFY_TOKEN);
 
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
         console.log('Webhook verificado');
@@ -39,7 +37,7 @@ app.post('/webhook', async (req, res) => {
             console.log("Mensaje recibido:", text);
 
             await axios.post(
-                `https://graph.facebook.com/v19.0/${PHONE_NUMBER_ID}/messages`,
+                `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
                 {
                     messaging_product: "whatsapp",
                     to: from,
@@ -60,6 +58,10 @@ app.post('/webhook', async (req, res) => {
         res.sendStatus(500);
     }
 });
+
+// Importar y usar la ruta de prueba de WhatsApp
+const testWhatsappRouter = require('./routes/test-whatsapp');
+app.use(testWhatsappRouter);
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
