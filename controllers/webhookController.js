@@ -7,6 +7,13 @@ const logger = require('../utils/logger');
 const processed = new Map();
 const DEDUPE_TTL_MS = 1000 * 60 * 5;
 
+// core handler for webhook events. Performs several responsibilities:
+// 1. normalize payload into events
+// 2. determine which tenant the event belongs to (via phone_number_id)
+// 3. filter out non-message events and messages from the tenant itself
+// 4. simple in‑memory deduplication per tenant (replace with Redis)
+// 5. send a response via messageService (extensible)
+// TODO: move parts (dedupe, reply generation) into pluggable strategy modules
 async function handleIncoming(payload) {
   const events = helpers.extractEvents(payload);
   if (!events.length) return;

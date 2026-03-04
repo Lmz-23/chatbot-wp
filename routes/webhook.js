@@ -3,7 +3,10 @@ const router = express.Router();
 const webhookConfig = require('../config/webhookConfig');
 const webhookController = require('../controllers/webhookController');
 
-// GET /webhook - verification for Meta
+// GET /webhook - verification callback used when you configure the webhook
+// URL in Meta's developer console. Meta sends a challenge which we only echo
+// back if the verify_token matches. This endpoint is public and should not
+// expose sensitive data.
 router.get('/', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -13,7 +16,11 @@ router.get('/', (req, res) => {
   return res.sendStatus(403);
 });
 
-// POST /webhook - quick ACK then process
+// POST /webhook - receive events from Meta. We reply 200 immediately to
+// prevent Meta from retrying; processing is offloaded to the controller so
+// the HTTP thread is not blocked (sooner or later this should be enqueued to
+// a work queue). Errors during processing are logged but do not affect the
+// response.
 router.post('/', (req, res) => {
   res.sendStatus(200); // Quick ACK to avoid retries
   webhookController.handleIncoming(req.body).catch(() => {

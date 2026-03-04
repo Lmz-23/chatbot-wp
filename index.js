@@ -4,9 +4,13 @@ const logger = require('./utils/logger');
 const db = require('./db');
 
 const app = express();
+// parse JSON bodies (Webhook posts are application/json)
 app.use(express.json());
 
 // Mount routes
+// - /webhook is the main entrypoint for WhatsApp events
+// - /test-whatsapp is a temporary helper for sending test messages; it
+//   should be removed or secured before production.
 app.use('/webhook', require('./routes/webhook'));
 app.use('/', require('./routes/test-whatsapp'));
 
@@ -18,6 +22,8 @@ const PORT = process.env.PORT || 3000;
 async function start() {
   try {
     // Initialize DB schema (idempotent). In production use proper migrations.
+    // This placeholder creates tables on each start; replace with a
+    // migration run via CLI or CI step.
     if (db.init) await db.init().catch((e) => logger.warn('db_init_warn', { err: e.message || e }));
 
     const server = app.listen(PORT, () => {

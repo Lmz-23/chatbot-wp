@@ -6,6 +6,10 @@ const logger = require('./logger');
  * - validateSignature: HMAC signature check (stub; requires raw body)
 */
 
+// Normalize the webhook payload into a flat array of event objects.
+// Facebook/WhatsApp sends an entry/changes structure; this helper unwraps it and
+// hoists metadata (like phone_number_id) to the top-level for easier handling.
+// Additional transformation (e.g. filtering statuses) can be added here.
 function extractEvents(body) {
   try {
     const entries = body?.entry || [];
@@ -24,6 +28,9 @@ function extractEvents(body) {
   }
 }
 
+// Validate the X-Hub-Signature header against the raw request body using
+// the app secret. This prevents spoofed webhooks. Note that the caller needs
+// to capture the raw body before Express parsers consume it.
 function validateSignature(rawBody, signatureHeader, appSecret) {
   // signatureHeader example: 'sha1=...' or 'sha256=...'
   if (!rawBody || !signatureHeader || !appSecret) return false;

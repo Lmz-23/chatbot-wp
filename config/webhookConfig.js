@@ -5,9 +5,11 @@
 
 const GLOBAL_VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
+// Verify the token provided by Meta when establishing or re-validating a
+// webhook subscription. In a SaaS environment you might need a per-tenant
+// verify token (stored with the tenant record) rather than a single global
+// value. The `mode` must be "subscribe" as per Facebook docs.
 function verifyToken(token, mode) {
-  // For initial setup we use a global verify token. In multi-tenant setups,
-  // you may implement per-tenant verify tokens stored securely in DB/Secrets.
   if (mode !== 'subscribe') return false;
   return token && GLOBAL_VERIFY_TOKEN && token === GLOBAL_VERIFY_TOKEN;
 }

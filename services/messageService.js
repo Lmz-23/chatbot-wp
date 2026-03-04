@@ -5,6 +5,10 @@ const logger = require('../utils/logger');
  * Send text message using tenant's token and phone_number_id.
  * Returns Graph API response object. Throws on failure.
  */
+// send a text message through the WhatsApp Cloud Graph API. This function
+// is currently the only message provider; for SaaS the provider should be
+// abstracted so alternative channels (SMS, etc.) can be added without
+// modifying callers.
 async function sendText({ business, to, body }) {
   if (!business || !business.token || !business.phone_number_id) {
     throw new Error('missing_business_credentials');

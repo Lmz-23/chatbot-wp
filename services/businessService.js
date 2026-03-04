@@ -5,6 +5,10 @@ const logger = require('../utils/logger');
  * Retrieve tenant configuration by phone_number_id.
  * In production prefer storing tokens in a secret manager and caching results.
  */
+// fetch tenant configuration from the database by the phone_number_id
+// provided in the webhook payload. This is the primary multi-tenant lookup
+// point. In development we allow an "env fallback" to avoid spins of the
+// DB. Remove the fallback in production and secure tokens in a secret store.
 async function getByPhoneNumberId(phoneNumberId) {
   try {
     const q = 'SELECT id, name, phone_number_id, phone_number, token FROM businesses WHERE phone_number_id = $1 LIMIT 1';
