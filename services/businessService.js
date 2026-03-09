@@ -11,11 +11,22 @@ const logger = require('../utils/logger');
 // DB. Remove the fallback in production and secure tokens in a secret store.
 async function getByPhoneNumberId(phoneNumberId) {
   try {
-    const q = 'SELECT id, name, phone_number_id, phone_number, token FROM businesses WHERE phone_number_id = $1 LIMIT 1';
+    // new schema: whatsapp_accounts holds individual numbers; join to businesses
+    const q = `
+      SELECT
+        b.id,
+        b.name,
+        w.phone_number_id,
+        w.phone_number,
+        w.token
+      FROM whatsapp_accounts w
+      JOIN businesses b ON b.id = w.business_id
+      WHERE w.phone_number_id = $1
+      LIMIT 1`;
     const { rows } = await db.query(q, [phoneNumberId]);
     if (rows.length) return rows[0];
 
-    // Dev fallback: use env credentials when phone_number_id matches
+    // Dev fallback remains unchanged for testing with a single env number
     if (process.env.PHONE_NUMBER_ID && process.env.PHONE_NUMBER_ID === phoneNumberId && process.env.WHATSAPP_TOKEN) {
       logger.warn('using_env_credentials_for_phone_number_id', { phoneNumberId });
       return {

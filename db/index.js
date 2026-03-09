@@ -28,6 +28,7 @@ async function query(text, params) {
 async function init() {
   const models = require('./models');
   await query(models.createBusinessesTable);
+  await query(models.createWhatsappAccountsTable);
   await query(models.createMessagesTable);
   await query(models.createLogsTable);
   logger.info('db_initialized');
