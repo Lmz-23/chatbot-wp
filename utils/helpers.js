@@ -3,7 +3,7 @@ const logger = require('./logger');
 /**
  * Helpers for webhook payload processing.
  * - extractEvents: normalize Facebook webhook payload into an array of events
- * - validateSignature: HMAC signature check (stub; requires raw body)
+ * - validateSignature: HMAC signature check (requires raw body)
 */
 
 // Normalize the webhook payload into a flat array of event objects.

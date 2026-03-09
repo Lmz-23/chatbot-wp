@@ -22,6 +22,7 @@ async function saveMessage({ messageId, whatsappAccountId, fromNumber, toNumber,
       status
     )
     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    -- Meta can retry webhook deliveries; keep writes idempotent by message_id.
     ON CONFLICT (message_id) DO NOTHING`;
 
   await db.query(q, [
@@ -39,7 +40,7 @@ async function saveMessage({ messageId, whatsappAccountId, fromNumber, toNumber,
 // 1. normalize payload into events
 // 2. determine which tenant the event belongs to (via phone_number_id)
 // 3. filter out non-message events and messages from the tenant itself
-// 4. simple in‑memory deduplication per tenant (replace with Redis)
+// 4. simple in-memory dedupe per WhatsApp account (replace with Redis)
 // 5. send a response via messageService (extensible)
 // TODO: move parts (dedupe, reply generation) into pluggable strategy modules
 async function handleIncoming(payload) {
@@ -67,18 +68,25 @@ async function handleIncoming(payload) {
       continue;
     }
 
-    const seen = processed.get(business.id) || new Set();
+    // Deduplication scope is the WhatsApp account, not only business, so one
+    // business can safely operate multiple numbers without cross-number clashes.
+    const dedupeScope = business.whatsapp_account_id || business.id;
+    const seen = processed.get(dedupeScope) || new Set();
     if (seen.has(message.id)) {
-      logger.info('duplicate_message_ignored', { businessId: business.id, messageId: message.id });
+      logger.info('duplicate_message_ignored', {
+        businessId: business.id,
+        whatsappAccountId: business.whatsapp_account_id || null,
+        messageId: message.id
+      });
       continue;
     }
     seen.add(message.id);
-    processed.set(business.id, seen);
+    processed.set(dedupeScope, seen);
     setTimeout(() => {
-      const s = processed.get(business.id);
+      const s = processed.get(dedupeScope);
       if (s) {
         s.delete(message.id);
-        if (s.size === 0) processed.delete(business.id);
+        if (s.size === 0) processed.delete(dedupeScope);
       }
     }, DEDUPE_TTL_MS);
 

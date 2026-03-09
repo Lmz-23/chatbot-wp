@@ -25,6 +25,8 @@ router.get('/', (req, res) => {
 // response.
 router.post('/', (req, res) => {
   const appSecret = process.env.APP_SECRET;
+  // When APP_SECRET is configured, enforce signature validation.
+  // If omitted, route remains open for local/dev convenience.
   if (appSecret) {
     const signatureHeader = req.get('x-hub-signature-256') || req.get('x-hub-signature');
     const isValid = helpers.validateSignature(req.rawBody, signatureHeader, appSecret);
