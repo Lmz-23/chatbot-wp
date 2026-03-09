@@ -11,6 +11,8 @@ const logger = require('../utils/logger');
 // DB. Remove the fallback in production and secure tokens in a secret store.
 async function getByPhoneNumberId(phoneNumberId) {
   try {
+    const isProduction = process.env.NODE_ENV === 'production';
+
     // new schema: whatsapp_accounts holds individual numbers; join to businesses
     const q = `
       SELECT
@@ -27,7 +29,13 @@ async function getByPhoneNumberId(phoneNumberId) {
     const { rows } = await db.query(q, [phoneNumberId]);
     if (rows.length) return rows[0];
 
-    // Dev fallback remains unchanged for testing with a single env number
+    // Enforce strict tenant lookup in production.
+    if (isProduction) {
+      logger.warn('tenant_not_found_in_database', { phoneNumberId });
+      return null;
+    }
+
+    // Local/dev fallback for quick testing with a single env number.
     if (process.env.PHONE_NUMBER_ID && process.env.PHONE_NUMBER_ID === phoneNumberId && process.env.WHATSAPP_TOKEN) {
       logger.warn('using_env_credentials_for_phone_number_id', { phoneNumberId });
       return {

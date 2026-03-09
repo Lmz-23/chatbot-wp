@@ -36,6 +36,17 @@ async function saveMessage({ messageId, whatsappAccountId, fromNumber, toNumber,
   ]);
 }
 
+async function updateMessageStatus({ messageId, status }) {
+  if (!messageId || !status) return;
+
+  const q = `
+    UPDATE messages
+    SET status = $1
+    WHERE message_id = $2`;
+
+  await db.query(q, [status, messageId]);
+}
+
 // core handler for webhook events. Performs several responsibilities:
 // 1. normalize payload into events
 // 2. determine which tenant the event belongs to (via phone_number_id)
@@ -48,9 +59,6 @@ async function handleIncoming(payload) {
   if (!events.length) return;
 
   for (const ev of events) {
-    const message = ev.messages?.[0];
-    if (!message) continue;
-
     const phoneNumberId = ev.metadata?.phone_number_id;
     if (!phoneNumberId) {
       logger.warn('event_missing_phone_number_id', { event: ev });
@@ -62,6 +70,28 @@ async function handleIncoming(payload) {
       logger.warn('unknown_business', { phoneNumberId });
       continue;
     }
+
+    const statusEvent = ev.statuses?.[0];
+    if (statusEvent?.id && statusEvent?.status) {
+      try {
+        await updateMessageStatus({ messageId: statusEvent.id, status: statusEvent.status });
+        logger.info('message_status_updated', {
+          businessId: business.id,
+          messageId: statusEvent.id,
+          status: statusEvent.status
+        });
+      } catch (err) {
+        logger.error('message_status_update_failed', {
+          businessId: business.id,
+          messageId: statusEvent.id,
+          status: statusEvent.status,
+          err: err && err.message ? err.message : err
+        });
+      }
+    }
+
+    const message = ev.messages?.[0];
+    if (!message) continue;
 
     if (message.from === business.phone_number) {
       logger.info('ignored_own_message', { businessId: business.id, messageId: message.id });
