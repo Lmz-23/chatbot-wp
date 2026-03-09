@@ -1,11 +1,20 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
+function shouldUseSsl() {
+  const url = process.env.DATABASE_URL || '';
+  if (!url) return false;
+  if (/localhost|127\.0\.0\.1/.test(url)) return false;
+  if (/sslmode=disable/i.test(url)) return false;
+  return true;
+}
+
 // create a connection pool to Postgres; pool settings (max, idleTimeout) can be
 // configured via environment variables or provider defaults. Using a pool allows
 // multiple concurrent queries and is reused across the app.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: shouldUseSsl() ? { rejectUnauthorized: false } : false,
 });
 
 pool.on('error', (err) => {
@@ -27,11 +36,22 @@ async function query(text, params) {
 // intended for development / early MVP.
 async function init() {
   const models = require('./models');
-  await query(models.createBusinessesTable);
-  await query(models.createWhatsappAccountsTable);
-  await query(models.createMessagesTable);
-  await query(models.createLogsTable);
-  logger.info('db_initialized');
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await query(models.createBusinessesTable);
+      await query(models.createWhatsappAccountsTable);
+      await query(models.createMessagesTable);
+      await query(models.createLogsTable);
+      logger.info('db_initialized', { attempt });
+      return;
+    } catch (err) {
+      const details = err && err.message ? err.message : err;
+      logger.warn('db_init_attempt_failed', { attempt, maxAttempts, err: details });
+      if (attempt === maxAttempts) throw err;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+    }
+  }
 }
 
 module.exports = { pool, query, init };

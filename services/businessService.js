@@ -16,6 +16,7 @@ async function getByPhoneNumberId(phoneNumberId) {
       SELECT
         b.id,
         b.name,
+        w.id AS whatsapp_account_id,
         w.phone_number_id,
         w.phone_number,
         w.token
@@ -32,6 +33,7 @@ async function getByPhoneNumberId(phoneNumberId) {
       return {
         id: 'env-fallback',
         name: 'env-fallback',
+        whatsapp_account_id: null,
         phone_number_id: process.env.PHONE_NUMBER_ID,
         phone_number: process.env.MY_WHATSAPP_NUMBER || null,
         token: process.env.WHATSAPP_TOKEN
