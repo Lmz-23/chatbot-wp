@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const webhookConfig = require('../config/webhookConfig');
 const webhookController = require('../controllers/webhookController');
+const helpers = require('../utils/helpers');
+const logger = require('../utils/logger');
 
 // GET /webhook - verification callback used when you configure the webhook
 // URL in Meta's developer console. Meta sends a challenge which we only echo
@@ -22,6 +24,16 @@ router.get('/', (req, res) => {
 // a work queue). Errors during processing are logged but do not affect the
 // response.
 router.post('/', (req, res) => {
+  const appSecret = process.env.APP_SECRET;
+  if (appSecret) {
+    const signatureHeader = req.get('x-hub-signature-256') || req.get('x-hub-signature');
+    const isValid = helpers.validateSignature(req.rawBody, signatureHeader, appSecret);
+    if (!isValid) {
+      logger.warn('webhook_signature_invalid');
+      return res.sendStatus(403);
+    }
+  }
+
   res.sendStatus(200); // Quick ACK to avoid retries
   webhookController.handleIncoming(req.body).catch(() => {
     // controller logs errors

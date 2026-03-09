@@ -5,7 +5,14 @@ const db = require('./db');
 
 const app = express();
 // parse JSON bodies (Webhook posts are application/json)
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      // Preserve the exact payload bytes to validate Meta webhook signature.
+      req.rawBody = Buffer.from(buf);
+    }
+  })
+);
 
 // Mount routes
 // - /webhook is the main entrypoint for WhatsApp events

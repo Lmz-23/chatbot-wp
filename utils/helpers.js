@@ -37,9 +37,12 @@ function validateSignature(rawBody, signatureHeader, appSecret) {
   try {
     const crypto = require('crypto');
     const [algorithm, signature] = signatureHeader.split('=');
-    const hmac = crypto.createHmac(algorithm.replace('sha', 'sha'), appSecret);
-    hmac.update(rawBody, 'utf8');
+    const normalizedAlgorithm = (algorithm || '').toLowerCase();
+    if (!['sha1', 'sha256'].includes(normalizedAlgorithm)) return false;
+    const hmac = crypto.createHmac(normalizedAlgorithm, appSecret);
+    hmac.update(rawBody);
     const digest = hmac.digest('hex');
+    if (!signature || signature.length !== digest.length) return false;
     return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(digest, 'hex'));
   } catch (err) {
     logger.error('signature_validation_error', { err: err && err.message ? err.message : err });
