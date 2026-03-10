@@ -15,11 +15,31 @@ CREATE TABLE IF NOT EXISTS whatsapp_accounts (
   created_at TIMESTAMPTZ DEFAULT now()
 );`;
 
+const createConversationsTable = `
+CREATE TABLE IF NOT EXISTS conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  whatsapp_account_id UUID NOT NULL REFERENCES whatsapp_accounts(id) ON DELETE CASCADE,
+  user_phone TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closed')),
+  last_message_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);`;
+
+const createConversationsIndex = `
+CREATE INDEX IF NOT EXISTS idx_conversations_account_user
+  ON conversations (whatsapp_account_id, user_phone);`;
+
+const createConversationsActiveIndex = `
+CREATE INDEX IF NOT EXISTS idx_conversations_active_lookup
+  ON conversations (whatsapp_account_id, user_phone, created_at DESC)
+  WHERE status = 'active';`;
+
 const createMessagesTable = `
 CREATE TABLE IF NOT EXISTS messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   message_id TEXT UNIQUE,
   whatsapp_account_id UUID REFERENCES whatsapp_accounts(id) ON DELETE CASCADE,
+  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
   from_number TEXT,
   to_number TEXT,
   body TEXT,
@@ -27,6 +47,10 @@ CREATE TABLE IF NOT EXISTS messages (
   status TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );`;
+
+const createMessagesConversationIndex = `
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
+  ON messages (conversation_id);`;
 
 const createLogsTable = `
 CREATE TABLE IF NOT EXISTS logs (
@@ -38,9 +62,13 @@ CREATE TABLE IF NOT EXISTS logs (
   created_at TIMESTAMPTZ DEFAULT now()
 );`;
 
-module.exports = { 
-  createBusinessesTable, 
-  createWhatsappAccountsTable, 
-  createMessagesTable, 
-  createLogsTable 
+module.exports = {
+  createBusinessesTable,
+  createWhatsappAccountsTable,
+  createConversationsTable,
+  createConversationsIndex,
+  createConversationsActiveIndex,
+  createMessagesTable,
+  createMessagesConversationIndex,
+  createLogsTable
 };

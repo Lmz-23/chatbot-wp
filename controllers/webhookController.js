@@ -2,32 +2,46 @@ const helpers = require('../utils/helpers');
 const db = require('../db');
 const businessService = require('../services/businessService');
 const messageService = require('../services/messageService');
+const conversationService = require('../services/conversationService');
+const contextService = require('../services/contextService');
+const conversationEngine = require('../services/conversationEngine');
 const logger = require('../utils/logger');
 
 // Simple in-memory dedupe; replace with Redis in production
 const processed = new Map();
 const DEDUPE_TTL_MS = 1000 * 60 * 5;
 
-async function saveMessage({ messageId, whatsappAccountId, fromNumber, toNumber, body, direction, status }) {
+async function saveMessage({
+  messageId,
+  whatsappAccountId,
+  conversationId,
+  fromNumber,
+  toNumber,
+  body,
+  direction,
+  status
+}) {
   if (!whatsappAccountId) return;
 
   const q = `
     INSERT INTO messages (
       message_id,
       whatsapp_account_id,
+      conversation_id,
       from_number,
       to_number,
       body,
       direction,
       status
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     -- Meta can retry webhook deliveries; keep writes idempotent by message_id.
     ON CONFLICT (message_id) DO NOTHING`;
 
   await db.query(q, [
     messageId || null,
     whatsappAccountId,
+    conversationId || null,
     fromNumber || null,
     toNumber || null,
     body || null,
@@ -121,10 +135,16 @@ async function handleIncoming(payload) {
     }, DEDUPE_TTL_MS);
 
     try {
+      const conversation = await conversationService.resolveConversation(
+        business.whatsapp_account_id,
+        message.from
+      );
+
       const incomingText = message.text?.body || '';
       await saveMessage({
         messageId: message.id,
         whatsappAccountId: business.whatsapp_account_id,
+        conversationId: conversation.id,
         fromNumber: message.from,
         toNumber: business.phone_number,
         body: incomingText,
@@ -132,13 +152,15 @@ async function handleIncoming(payload) {
         status: 'received'
       });
 
-      const replyText = `Recibí tu mensaje: ${incomingText}`;
+      const context = await contextService.getConversationContext(conversation.id);
+      const replyText = conversationEngine.generateResponse(incomingText, context);
       const sendResult = await messageService.sendText({ business, to: message.from, body: replyText });
 
       const outboundMessageId = sendResult?.messages?.[0]?.id || null;
       await saveMessage({
         messageId: outboundMessageId,
         whatsappAccountId: business.whatsapp_account_id,
+        conversationId: conversation.id,
         fromNumber: business.phone_number,
         toNumber: message.from,
         body: replyText,
@@ -146,7 +168,11 @@ async function handleIncoming(payload) {
         status: 'sent'
       });
 
-      logger.info('reply_sent', { businessId: business.id, messageId: message.id });
+      logger.info('reply_sent', {
+        businessId: business.id,
+        conversationId: conversation.id,
+        messageId: message.id
+      });
     } catch (err) {
       logger.error('reply_failed', { businessId: business.id, err: err && err.message ? err.message : err });
     }

@@ -41,7 +41,11 @@ async function init() {
     try {
       await query(models.createBusinessesTable);
       await query(models.createWhatsappAccountsTable);
+      await query(models.createConversationsTable);
+      await query(models.createConversationsIndex);
+      await query(models.createConversationsActiveIndex);
       await query(models.createMessagesTable);
+      await query(models.createMessagesConversationIndex);
       await query(models.createLogsTable);
       logger.info('db_initialized', { attempt });
       return;
