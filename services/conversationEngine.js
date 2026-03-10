@@ -1,5 +1,14 @@
 const intentRouter = require('./intentRouter');
 const leadService = require('./leadService');
+const settingsService = require('./settingsService');
+const logger = require('../utils/logger');
+
+const DEFAULT_MESSAGES = {
+  welcome_message: 'Hola! Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?',
+  pricing_message: 'Con gusto. Nuestros precios dependen del servicio y volumen. Si quieres, te comparto una cotización rápida.',
+  lead_capture_message: 'Perfecto, uno de nuestros asesores te contactará pronto. ¡Gracias por tu interés!',
+  fallback_message: 'Gracias por tu mensaje. Ya reviso el contexto de la conversación y te ayudo enseguida.'
+};
 
 // generateResponse is async because lead_capture intent writes to the database.
 // Callers must await this function.
@@ -7,13 +16,32 @@ const leadService = require('./leadService');
 async function generateResponse(message, context, meta = {}) {
   const intent = intentRouter.detectIntent(message);
   const hasHistory = Array.isArray(context) && context.length > 0;
+  let settings = null;
+
+  try {
+    if (meta.businessId) {
+      settings = await settingsService.getOrCreateSettings(meta.businessId);
+    }
+  } catch (err) {
+    logger.error('settings_load_failed', {
+      businessId: meta.businessId || null,
+      err: err && err.message ? err.message : err
+    });
+  }
+
+  const messages = {
+    welcome_message: settings?.welcome_message || DEFAULT_MESSAGES.welcome_message,
+    pricing_message: settings?.pricing_message || DEFAULT_MESSAGES.pricing_message,
+    lead_capture_message: settings?.lead_capture_message || DEFAULT_MESSAGES.lead_capture_message,
+    fallback_message: settings?.fallback_message || DEFAULT_MESSAGES.fallback_message
+  };
 
   switch (intent) {
     case 'greeting':
-      return 'Hola! Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?';
+      return messages.welcome_message;
 
     case 'pricing':
-      return 'Con gusto. Nuestros precios dependen del servicio y volumen. Si quieres, te comparto una cotización rápida.';
+      return messages.pricing_message;
 
     case 'lead_capture': {
       const { businessId, conversationId, phone } = meta;
@@ -25,17 +53,16 @@ async function generateResponse(message, context, meta = {}) {
           }
         } catch (leadErr) {
           // Log but never block the reply to the user
-          const logger = require('../utils/logger');
           logger.error('lead_capture_failed', { conversationId, err: leadErr && leadErr.message ? leadErr.message : leadErr });
         }
       }
-      return 'Perfecto, uno de nuestros asesores te contactará pronto. ¡Gracias por tu interés!';
+      return messages.lead_capture_message;
     }
 
     default:
       return hasHistory
-        ? 'Gracias por tu mensaje. Ya reviso el contexto de la conversación y te ayudo enseguida.'
-        : 'Gracias por escribirnos. Cuéntame un poco más para ayudarte mejor.';
+        ? messages.fallback_message
+        : messages.fallback_message;
   }
 }
 

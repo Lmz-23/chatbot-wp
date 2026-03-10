@@ -49,6 +49,7 @@ async function init() {
       await query(models.createLeadsTable);
       await query(models.createLeadsBusinessIndex);
       await query(models.createLeadsConversationIndex);
+      await query(models.createBusinessSettingsTable);
       await query(models.createLogsTable);
       logger.info('db_initialized', { attempt });
       return;

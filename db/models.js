@@ -73,6 +73,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_conversation_unique
   ON leads (conversation_id)
   WHERE conversation_id IS NOT NULL;`;
 
+const createBusinessSettingsTable = `
+CREATE TABLE IF NOT EXISTS business_settings (
+  business_id UUID PRIMARY KEY REFERENCES businesses(id) ON DELETE CASCADE,
+  welcome_message TEXT,
+  pricing_message TEXT,
+  lead_capture_message TEXT,
+  fallback_message TEXT,
+  ai_enabled BOOLEAN NOT NULL DEFAULT false,
+  human_handoff BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);`;
+
 const createLogsTable = `
 CREATE TABLE IF NOT EXISTS logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -94,5 +107,6 @@ module.exports = {
   createLeadsTable,
   createLeadsBusinessIndex,
   createLeadsConversationIndex,
+  createBusinessSettingsTable,
   createLogsTable
 };

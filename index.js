@@ -20,6 +20,7 @@ app.use(
 //   should be removed or secured before production.
 app.use('/webhook', require('./routes/webhook'));
 app.use('/', require('./routes/test-whatsapp'));
+app.use('/business', require('./routes/business-settings'));
 
 // Health
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
