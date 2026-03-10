@@ -8,7 +8,7 @@ async function createLead(businessId, conversationId, phone, interest) {
   const q = `
     INSERT INTO leads (business_id, conversation_id, phone, interest)
     VALUES ($1, $2, $3, $4)
-    ON CONFLICT (conversation_id) DO NOTHING
+    ON CONFLICT (conversation_id) WHERE conversation_id IS NOT NULL DO NOTHING
     RETURNING *`;
 
   const result = await db.query(q, [businessId, conversationId, phone || null, interest || null]);

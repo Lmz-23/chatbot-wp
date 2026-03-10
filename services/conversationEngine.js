@@ -18,9 +18,15 @@ async function generateResponse(message, context, meta = {}) {
     case 'lead_capture': {
       const { businessId, conversationId, phone } = meta;
       if (businessId && conversationId) {
-        const existing = await leadService.getLeadByConversation(conversationId);
-        if (!existing) {
-          await leadService.createLead(businessId, conversationId, phone, message);
+        try {
+          const existing = await leadService.getLeadByConversation(conversationId);
+          if (!existing) {
+            await leadService.createLead(businessId, conversationId, phone, message);
+          }
+        } catch (leadErr) {
+          // Log but never block the reply to the user
+          const logger = require('../utils/logger');
+          logger.error('lead_capture_failed', { conversationId, err: leadErr && leadErr.message ? leadErr.message : leadErr });
         }
       }
       return 'Perfecto, uno de nuestros asesores te contactará pronto. ¡Gracias por tu interés!';
