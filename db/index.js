@@ -46,6 +46,9 @@ async function init() {
       await query(models.createConversationsActiveIndex);
       await query(models.createMessagesTable);
       await query(models.createMessagesConversationIndex);
+      await query(models.createLeadsTable);
+      await query(models.createLeadsBusinessIndex);
+      await query(models.createLeadsConversationIndex);
       await query(models.createLogsTable);
       logger.info('db_initialized', { attempt });
       return;

@@ -52,6 +52,27 @@ const createMessagesConversationIndex = `
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
   ON messages (conversation_id);`;
 
+const createLeadsTable = `
+CREATE TABLE IF NOT EXISTS leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  name TEXT,
+  phone TEXT,
+  interest TEXT,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'closed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);`;
+
+const createLeadsBusinessIndex = `
+CREATE INDEX IF NOT EXISTS idx_leads_business_id
+  ON leads (business_id);`;
+
+const createLeadsConversationIndex = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_conversation_unique
+  ON leads (conversation_id)
+  WHERE conversation_id IS NOT NULL;`;
+
 const createLogsTable = `
 CREATE TABLE IF NOT EXISTS logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,5 +91,8 @@ module.exports = {
   createConversationsActiveIndex,
   createMessagesTable,
   createMessagesConversationIndex,
+  createLeadsTable,
+  createLeadsBusinessIndex,
+  createLeadsConversationIndex,
   createLogsTable
 };

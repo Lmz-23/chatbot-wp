@@ -153,7 +153,11 @@ async function handleIncoming(payload) {
       });
 
       const context = await contextService.getConversationContext(conversation.id);
-      const replyText = conversationEngine.generateResponse(incomingText, context);
+      const replyText = await conversationEngine.generateResponse(incomingText, context, {
+        businessId: business.id,
+        conversationId: conversation.id,
+        phone: message.from
+      });
       const sendResult = await messageService.sendText({ business, to: message.from, body: replyText });
 
       const outboundMessageId = sendResult?.messages?.[0]?.id || null;
