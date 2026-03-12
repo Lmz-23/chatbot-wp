@@ -1,6 +1,14 @@
 const settingsService = require('../services/settingsService');
 const logger = require('../utils/logger');
 
+const MAX_MESSAGE_LENGTH = 2000;
+const MESSAGE_FIELDS = [
+  'welcome_message',
+  'pricing_message',
+  'lead_capture_message',
+  'fallback_message'
+];
+
 function isUuid(value) {
   return typeof value === 'string'
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -23,6 +31,19 @@ async function updateBusinessSettings(req, res) {
     }
 
     await settingsService.getOrCreateSettings(businessId);
+
+    for (const field of MESSAGE_FIELDS) {
+      const value = req.body[field];
+      if (value === undefined || value === null) continue;
+
+      if (typeof value !== 'string') {
+        return res.status(400).json({ error: `${field} must be a string` });
+      }
+
+      if (value.length > MAX_MESSAGE_LENGTH) {
+        return res.status(400).json({ error: `${field} exceeds ${MAX_MESSAGE_LENGTH} characters` });
+      }
+    }
 
     const updates = {
       welcome_message: req.body.welcome_message,

@@ -52,6 +52,10 @@ const createMessagesConversationIndex = `
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
   ON messages (conversation_id);`;
 
+const createMessagesConversationCreatedAtIndex = `
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_created_at
+  ON messages (conversation_id, created_at);`;
+
 const createLeadsTable = `
 CREATE TABLE IF NOT EXISTS leads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -60,18 +64,27 @@ CREATE TABLE IF NOT EXISTS leads (
   name TEXT,
   phone TEXT,
   interest TEXT,
-  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'closed')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'qualified', 'closed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );`;
 
 const createLeadsBusinessIndex = `
 CREATE INDEX IF NOT EXISTS idx_leads_business_id
   ON leads (business_id);`;
 
+const createLeadsBusinessCreatedAtIndex = `
+CREATE INDEX IF NOT EXISTS idx_leads_business_created_at
+  ON leads (business_id, created_at);`;
+
 const createLeadsConversationIndex = `
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_conversation_unique
   ON leads (conversation_id)
   WHERE conversation_id IS NOT NULL;`;
+
+const createConversationsAccountCreatedAtIndex = `
+CREATE INDEX IF NOT EXISTS idx_conversations_account_created_at
+  ON conversations (whatsapp_account_id, created_at);`;
 
 const createBusinessSettingsTable = `
 CREATE TABLE IF NOT EXISTS business_settings (
@@ -104,9 +117,12 @@ module.exports = {
   createConversationsActiveIndex,
   createMessagesTable,
   createMessagesConversationIndex,
+  createMessagesConversationCreatedAtIndex,
   createLeadsTable,
   createLeadsBusinessIndex,
+  createLeadsBusinessCreatedAtIndex,
   createLeadsConversationIndex,
+  createConversationsAccountCreatedAtIndex,
   createBusinessSettingsTable,
   createLogsTable
 };

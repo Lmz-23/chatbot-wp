@@ -44,10 +44,13 @@ async function init() {
       await query(models.createConversationsTable);
       await query(models.createConversationsIndex);
       await query(models.createConversationsActiveIndex);
+      await query(models.createConversationsAccountCreatedAtIndex);
       await query(models.createMessagesTable);
       await query(models.createMessagesConversationIndex);
+      await query(models.createMessagesConversationCreatedAtIndex);
       await query(models.createLeadsTable);
       await query(models.createLeadsBusinessIndex);
+      await query(models.createLeadsBusinessCreatedAtIndex);
       await query(models.createLeadsConversationIndex);
       await query(models.createBusinessSettingsTable);
       await query(models.createLogsTable);

@@ -85,10 +85,10 @@ async function updateSettings(businessId, updates = {}) {
 
   const result = await db.query(q, [
     businessId,
-    updates.welcome_message || null,
-    updates.pricing_message || null,
-    updates.lead_capture_message || null,
-    updates.fallback_message || null
+    updates.welcome_message ?? null,
+    updates.pricing_message ?? null,
+    updates.lead_capture_message ?? null,
+    updates.fallback_message ?? null
   ]);
 
   return result.rows[0] || null;

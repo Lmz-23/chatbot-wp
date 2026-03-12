@@ -27,4 +27,45 @@ async function getLeadByConversation(conversationId) {
   return result.rows[0] || null;
 }
 
-module.exports = { createLead, getLeadByConversation };
+async function listLeadsByBusinessId(businessId) {
+  const q = `
+    SELECT
+      id,
+      phone,
+      interest,
+      status,
+      created_at
+    FROM leads
+    WHERE business_id = $1
+    ORDER BY created_at DESC`;
+
+  const result = await db.query(q, [businessId]);
+  return result.rows;
+}
+
+async function updateLeadStatusByBusiness(leadId, businessId, status) {
+  const q = `
+    UPDATE leads
+    SET status = $3,
+        updated_at = now()
+    WHERE id = $1
+      AND business_id = $2
+    RETURNING
+      id,
+      business_id,
+      phone,
+      interest,
+      status,
+      created_at,
+      updated_at`;
+
+  const result = await db.query(q, [leadId, businessId, status]);
+  return result.rows[0] || null;
+}
+
+module.exports = {
+  createLead,
+  getLeadByConversation,
+  listLeadsByBusinessId,
+  updateLeadStatusByBusiness
+};
