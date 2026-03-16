@@ -20,6 +20,8 @@ app.use(
 //   should be removed or secured before production.
 app.use('/webhook', require('./routes/webhook'));
 app.use('/', require('./routes/test-whatsapp'));
+app.use('/auth', require('./routes/auth'));
+app.use('/admin/business', require('./routes/business-admin'));
 app.use('/business', require('./routes/business-settings'));
 app.use('/business', require('./routes/business-leads'));
 app.use('/business', require('./routes/business-conversations'));

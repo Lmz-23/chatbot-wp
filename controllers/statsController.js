@@ -9,10 +9,10 @@ function isUuid(value) {
 
 async function getBusinessStats(req, res) {
   try {
-    const businessId = req.query.businessId;
+    const businessId = req.user && req.user.businessId;
 
     if (!businessId) {
-      return res.status(400).json({ error: 'businessId is required' });
+      return res.status(403).json({ error: 'forbidden' });
     }
 
     if (!isUuid(businessId)) {

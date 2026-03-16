@@ -99,6 +99,35 @@ CREATE TABLE IF NOT EXISTS business_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );`;
 
+const createUsersTable = `
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  platform_role TEXT NOT NULL DEFAULT 'USER'
+    CHECK (platform_role IN ('PLATFORM_ADMIN', 'USER')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);`;
+
+const createUsersEmailIndex = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email
+  ON users (email);`;
+
+const createMembershipsTable = `
+CREATE TABLE IF NOT EXISTS memberships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'AGENT'
+    CHECK (role IN ('OWNER', 'AGENT')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, business_id)
+);`;
+
+const createMembershipsUserIndex = `
+CREATE INDEX IF NOT EXISTS idx_memberships_user_id
+  ON memberships (user_id);`;
+
 const createLogsTable = `
 CREATE TABLE IF NOT EXISTS logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -124,5 +153,9 @@ module.exports = {
   createLeadsConversationIndex,
   createConversationsAccountCreatedAtIndex,
   createBusinessSettingsTable,
+  createUsersTable,
+  createUsersEmailIndex,
+  createMembershipsTable,
+  createMembershipsUserIndex,
   createLogsTable
 };

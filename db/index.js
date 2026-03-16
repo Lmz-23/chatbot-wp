@@ -15,6 +15,7 @@ function shouldUseSsl() {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: shouldUseSsl() ? { rejectUnauthorized: false } : false,
+  client_encoding: 'UTF8',
 });
 
 pool.on('error', (err) => {
@@ -53,6 +54,10 @@ async function init() {
       await query(models.createLeadsBusinessCreatedAtIndex);
       await query(models.createLeadsConversationIndex);
       await query(models.createBusinessSettingsTable);
+      await query(models.createUsersTable);
+      await query(models.createUsersEmailIndex);
+      await query(models.createMembershipsTable);
+      await query(models.createMembershipsUserIndex);
       await query(models.createLogsTable);
       logger.info('db_initialized', { attempt });
       return;

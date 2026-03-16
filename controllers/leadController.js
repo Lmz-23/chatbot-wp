@@ -11,10 +11,10 @@ const ALLOWED_STATUSES = new Set(['new', 'contacted', 'qualified', 'closed']);
 
 async function listBusinessLeads(req, res) {
   try {
-    const businessId = req.query.businessId;
+    const businessId = req.user && req.user.businessId;
 
     if (!businessId) {
-      return res.status(400).json({ error: 'businessId is required' });
+      return res.status(403).json({ error: 'forbidden' });
     }
 
     if (!isUuid(businessId)) {
@@ -38,14 +38,14 @@ async function listBusinessLeads(req, res) {
 
 async function updateLeadStatus(req, res) {
   try {
-    const businessId = req.query.businessId;
+    const businessId = req.user && req.user.businessId;
     const leadId = req.params.id;
     const status = req.body && typeof req.body.status === 'string'
       ? req.body.status.trim().toLowerCase()
       : '';
 
     if (!businessId) {
-      return res.status(400).json({ error: 'businessId is required' });
+      return res.status(403).json({ error: 'forbidden' });
     }
 
     if (!isUuid(businessId)) {

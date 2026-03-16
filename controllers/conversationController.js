@@ -9,12 +9,12 @@ function isUuid(value) {
 
 async function listBusinessConversations(req, res) {
   try {
-    const businessId = req.query.businessId;
+    const businessId = req.user && req.user.businessId;
     const limitRaw = req.query.limit;
     const offsetRaw = req.query.offset;
 
     if (!businessId) {
-      return res.status(400).json({ error: 'businessId is required' });
+      return res.status(403).json({ error: 'forbidden' });
     }
 
     if (!isUuid(businessId)) {
@@ -58,11 +58,11 @@ async function listBusinessConversations(req, res) {
 
 async function getConversationMessages(req, res) {
   try {
-    const businessId = req.query.businessId;
+    const businessId = req.user && req.user.businessId;
     const conversationId = req.params.id;
 
     if (!businessId) {
-      return res.status(400).json({ error: 'businessId is required' });
+      return res.status(403).json({ error: 'forbidden' });
     }
 
     if (!isUuid(businessId)) {
