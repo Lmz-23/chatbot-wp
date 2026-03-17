@@ -15,8 +15,9 @@ function authenticateToken(req, res, next) {
     const decoded = authService.verifyToken(token);
     req.user = {
       userId: decoded.userId,
-      role: decoded.role,
-      businessId: decoded.businessId || null
+      platformRole: decoded.platformRole || null,
+      businessId: decoded.businessId || null,
+      businessRole: decoded.businessRole || null
     };
     return next();
   } catch (err) {
@@ -26,7 +27,7 @@ function authenticateToken(req, res, next) {
 }
 
 function requirePlatformAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'PLATFORM_ADMIN') {
+  if (!req.user || req.user.platformRole !== 'PLATFORM_ADMIN') {
     return res.status(403).json({ error: 'forbidden' });
   }
   return next();
@@ -37,7 +38,7 @@ function requireBusinessRole(roles) {
     if (!req.user || !req.user.businessId) {
       return res.status(403).json({ error: 'forbidden' });
     }
-    if (!roles.includes(req.user.role)) {
+    if (!roles.includes(req.user.businessRole)) {
       return res.status(403).json({ error: 'forbidden' });
     }
     return next();

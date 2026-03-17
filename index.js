@@ -4,6 +4,18 @@ const logger = require('./utils/logger');
 const db = require('./db');
 
 const app = express();
+
+// Enable CORS for frontend development
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // parse JSON bodies (Webhook posts are application/json)
 app.use(
   express.json({

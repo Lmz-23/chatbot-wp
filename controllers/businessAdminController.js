@@ -23,7 +23,7 @@ async function createBusiness(req, res) {
     await settingsService.getOrCreateSettings(business.id);
 
     // if called by a USER (OWNER), automatically create their membership
-    if (req.user.role === 'USER') {
+    if (req.user.platformRole === 'USER') {
       await membershipService.createMembership(req.user.userId, business.id, 'OWNER');
     }
 

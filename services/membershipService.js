@@ -37,4 +37,21 @@ async function createMembership(userId, businessId, role = 'OWNER') {
   return result.rows[0] || null;
 }
 
-module.exports = { getMembershipByUser, getMembershipsByUser, createMembership };
+async function getBusinessesByUser(userId) {
+  if (!userId) return [];
+
+  const q = `
+    SELECT
+      b.id,
+      b.name,
+      m.role
+    FROM memberships m
+    INNER JOIN businesses b ON b.id = m.business_id
+    WHERE m.user_id = $1
+    ORDER BY b.created_at DESC`;
+
+  const result = await db.query(q, [userId]);
+  return result.rows;
+}
+
+module.exports = { getMembershipByUser, getMembershipsByUser, createMembership, getBusinessesByUser };

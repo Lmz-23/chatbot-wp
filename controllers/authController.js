@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const userService = require('../services/userService');
+const membershipService = require('../services/membershipService');
 const logger = require('../utils/logger');
 
 async function login(req, res) {
@@ -36,8 +37,9 @@ async function me(req, res) {
       ok: true,
       userId: user.id,
       email: user.email,
-      role: user.platform_role,
-      businessId: user.business_id || null
+      platformRole: user.platform_role,
+      businessId: user.business_id || null,
+      businessRole: user.membership_role || null
     });
   } catch (err) {
     logger.error('me_failed', { err: err && err.message ? err.message : err });
@@ -45,4 +47,50 @@ async function me(req, res) {
   }
 }
 
-module.exports = { login, me };
+async function getUserBusinesses(req, res) {
+  try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ error: 'missing_token' });
+    }
+
+    const businesses = await membershipService.getBusinessesByUser(req.user.userId);
+    return res.status(200).json({ ok: true, businesses });
+  } catch (err) {
+    logger.error('get_user_businesses_failed', { err: err && err.message ? err.message : err });
+    return res.status(500).json({ error: 'internal_error' });
+  }
+}
+
+async function register(req, res) {
+  try {
+    const { email, password, businessName } = req.body || {};
+
+    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'email inválido' });
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'password debe tener mínimo 6 caracteres' });
+    }
+
+    if (!businessName || typeof businessName !== 'string' || businessName.trim().length === 0) {
+      return res.status(400).json({ error: 'businessName es requerido' });
+    }
+
+    const result = await authService.register({
+      email: email.trim().toLowerCase(),
+      password,
+      businessName: businessName.trim()
+    });
+
+    return res.status(201).json({ ok: true, token: result.token });
+  } catch (err) {
+    if (err.code === 'EMAIL_TAKEN') {
+      return res.status(400).json({ error: 'email ya registrado' });
+    }
+    logger.error('register_failed', { err: err && err.message ? err.message : err });
+    return res.status(500).json({ error: 'internal_error' });
+  }
+}
+
+module.exports = { login, me, getUserBusinesses, register };
