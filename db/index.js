@@ -43,6 +43,7 @@ async function init() {
       await query(models.createBusinessesTable);
       await query(models.createWhatsappAccountsTable);
       await query(models.createConversationsTable);
+      await query(models.migrateConversationStatusConstraint);
       await query(models.createConversationsIndex);
       await query(models.createConversationsActiveIndex);
       await query(models.createConversationsAccountCreatedAtIndex);

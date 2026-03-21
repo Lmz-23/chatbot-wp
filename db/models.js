@@ -20,10 +20,33 @@ CREATE TABLE IF NOT EXISTS conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   whatsapp_account_id UUID NOT NULL REFERENCES whatsapp_accounts(id) ON DELETE CASCADE,
   user_phone TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closed')),
+  status TEXT NOT NULL DEFAULT 'bot' CHECK (status IN ('bot', 'active', 'closed')),
   last_message_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );`;
+
+const migrateConversationStatusConstraint = `
+DO $$
+DECLARE
+  check_name text;
+BEGIN
+  SELECT con.conname INTO check_name
+  FROM pg_constraint con
+  JOIN pg_class rel ON rel.oid = con.conrelid
+  JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+  WHERE rel.relname = 'conversations'
+    AND con.contype = 'c'
+    AND pg_get_constraintdef(con.oid) ILIKE '%status%'
+  LIMIT 1;
+
+  IF check_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE conversations DROP CONSTRAINT %I', check_name);
+  END IF;
+
+  ALTER TABLE conversations
+    ADD CONSTRAINT conversations_status_check
+    CHECK (status IN ('bot', 'active', 'closed'));
+END $$;`;
 
 const createConversationsIndex = `
 CREATE INDEX IF NOT EXISTS idx_conversations_account_user
@@ -142,6 +165,7 @@ module.exports = {
   createBusinessesTable,
   createWhatsappAccountsTable,
   createConversationsTable,
+  migrateConversationStatusConstraint,
   createConversationsIndex,
   createConversationsActiveIndex,
   createMessagesTable,

@@ -152,6 +152,31 @@ async function handleIncoming(payload) {
         status: 'received'
       });
 
+      const activeExists = await conversationService.hasActiveConversation(
+        business.whatsapp_account_id,
+        message.from
+      );
+      if (activeExists && conversation.status !== 'active') {
+        logger.info('bot_reply_skipped_active_conversation_exists', {
+          businessId: business.id,
+          conversationId: conversation.id,
+          messageId: message.id,
+          conversationStatus: conversation.status
+        });
+        continue;
+      }
+
+      // If the conversation is handled by an agent, do not auto-reply with bot.
+      if (conversation.status !== 'bot') {
+        logger.info('bot_reply_skipped_non_bot_status', {
+          businessId: business.id,
+          conversationId: conversation.id,
+          status: conversation.status,
+          messageId: message.id
+        });
+        continue;
+      }
+
       const context = await contextService.getConversationContext(conversation.id);
       const replyText = await conversationEngine.generateResponse(incomingText, context, {
         businessId: business.id,

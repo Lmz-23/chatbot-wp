@@ -5,5 +5,7 @@ const { authenticateToken, requireBusinessRole } = require('../middlewares/auth'
 
 router.get('/conversations', authenticateToken, requireBusinessRole(['OWNER', 'AGENT']), conversationController.listBusinessConversations);
 router.get('/conversations/:id/messages', authenticateToken, requireBusinessRole(['OWNER', 'AGENT']), conversationController.getConversationMessages);
+router.post('/conversations/:id/messages', authenticateToken, requireBusinessRole(['OWNER', 'AGENT']), conversationController.sendMessage);
+router.patch('/conversations/:id/status', authenticateToken, requireBusinessRole(['OWNER', 'AGENT']), conversationController.updateConversationStatus);
 
 module.exports = router;
