@@ -22,25 +22,16 @@ async function resolveConversation(whatsappAccountId, userPhone) {
 
     if (conversation.status === 'closed') {
       await db.query(
-        `UPDATE conversations SET status = 'bot', last_message_at = now() WHERE id = $1`,
+        `UPDATE conversations SET status = 'bot' WHERE id = $1`,
         [conversation.id]
       );
       return {
         ...conversation,
-        status: 'bot',
-        last_message_at: new Date().toISOString()
+        status: 'bot'
       };
     }
 
-    await db.query(
-      `UPDATE conversations SET last_message_at = now() WHERE id = $1`,
-      [conversation.id]
-    );
-
-    return {
-      ...conversation,
-      last_message_at: new Date().toISOString()
-    };
+    return conversation;
   }
 
   const createQ = `
