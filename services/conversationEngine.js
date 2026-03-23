@@ -44,16 +44,17 @@ async function generateResponse(message, context, meta = {}) {
       return messages.pricing_message;
 
     case 'lead_capture': {
-      const { businessId, conversationId, phone } = meta;
-      if (businessId && conversationId) {
+      const { businessId, phone } = meta;
+      if (businessId && phone) {
         try {
-          const existing = await leadService.getLeadByConversation(conversationId);
-          if (!existing) {
-            await leadService.createLead(businessId, conversationId, phone, message);
-          }
+          await leadService.upsertLeadFromIncomingMessage(businessId, phone);
         } catch (leadErr) {
           // Log but never block the reply to the user
-          logger.error('lead_capture_failed', { conversationId, err: leadErr && leadErr.message ? leadErr.message : leadErr });
+          logger.error('lead_capture_failed', {
+            businessId,
+            phone,
+            err: leadErr && leadErr.message ? leadErr.message : leadErr
+          });
         }
       }
       return messages.lead_capture_message;

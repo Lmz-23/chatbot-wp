@@ -7,7 +7,7 @@ function isUuid(value) {
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-const ALLOWED_STATUSES = new Set(['new', 'contacted', 'qualified', 'closed']);
+const ALLOWED_STATUSES = new Set(['NEW', 'CONTACTED', 'QUALIFIED', 'CLOSED']);
 
 async function listBusinessLeads(req, res) {
   try {
@@ -36,13 +36,22 @@ async function listBusinessLeads(req, res) {
   }
 }
 
-async function updateLeadStatus(req, res) {
+async function updateLead(req, res) {
   try {
     const businessId = req.user && req.user.businessId;
     const leadId = req.params.id;
-    const status = req.body && typeof req.body.status === 'string'
-      ? req.body.status.trim().toLowerCase()
-      : '';
+    const rawName = req.body ? req.body.name : undefined;
+    const rawStatus = req.body ? req.body.status : undefined;
+
+    const hasName = rawName !== undefined;
+    const hasStatus = rawStatus !== undefined;
+
+    const name = hasName
+      ? (rawName === null ? null : String(rawName).trim())
+      : undefined;
+    const status = hasStatus
+      ? String(rawStatus).trim().toUpperCase()
+      : undefined;
 
     if (!businessId) {
       return res.status(403).json({ error: 'forbidden' });
@@ -56,13 +65,13 @@ async function updateLeadStatus(req, res) {
       return res.status(400).json({ error: 'lead id must be a valid UUID' });
     }
 
-    if (!status) {
-      return res.status(400).json({ error: 'status is required' });
+    if (!hasName && !hasStatus) {
+      return res.status(400).json({ error: 'provide at least one field: name or status' });
     }
 
-    if (!ALLOWED_STATUSES.has(status)) {
+    if (hasStatus && !ALLOWED_STATUSES.has(status)) {
       return res.status(400).json({
-        error: 'status must be one of: new, contacted, qualified, closed'
+        error: 'status must be one of: NEW, CONTACTED, QUALIFIED, CLOSED'
       });
     }
 
@@ -71,18 +80,21 @@ async function updateLeadStatus(req, res) {
       return res.status(404).json({ error: 'business not found' });
     }
 
-    const lead = await leadService.updateLeadStatusByBusiness(leadId, businessId, status);
+    const lead = await leadService.updateLeadByIdAndBusiness(leadId, businessId, { name, status });
     if (!lead) {
       return res.status(404).json({ error: 'lead not found for business' });
     }
 
     return res.status(200).json({ ok: true, lead });
   } catch (err) {
-    logger.error('update_lead_status_failed', {
+    logger.error('update_lead_failed', {
       err: err && err.message ? err.message : err
     });
+    if (err.code === 'invalid_lead_status' || err.message === 'invalid_lead_status') {
+      return res.status(400).json({ error: 'invalid status' });
+    }
     return res.status(500).json({ error: 'internal_error' });
   }
 }
 
-module.exports = { listBusinessLeads, updateLeadStatus };
+module.exports = { listBusinessLeads, updateLead };

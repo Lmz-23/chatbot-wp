@@ -5,6 +5,8 @@ const messageService = require('../services/messageService');
 const conversationService = require('../services/conversationService');
 const contextService = require('../services/contextService');
 const conversationEngine = require('../services/conversationEngine');
+const leadService = require('../services/leadService');
+const { normalizePhone } = require('../utils/phone');
 const logger = require('../utils/logger');
 
 // Simple in-memory dedupe; replace with Redis in production
@@ -135,9 +137,10 @@ async function handleIncoming(payload) {
     }, DEDUPE_TTL_MS);
 
     try {
+      const normalizedFromPhone = normalizePhone(message.from);
       const conversation = await conversationService.resolveConversation(
         business.whatsapp_account_id,
-        message.from
+        normalizedFromPhone
       );
 
       const incomingText = message.text?.body || '';
@@ -145,26 +148,14 @@ async function handleIncoming(payload) {
         messageId: message.id,
         whatsappAccountId: business.whatsapp_account_id,
         conversationId: conversation.id,
-        fromNumber: message.from,
+        fromNumber: normalizedFromPhone,
         toNumber: business.phone_number,
         body: incomingText,
         direction: 'inbound',
         status: 'received'
       });
 
-      const activeExists = await conversationService.hasActiveConversation(
-        business.whatsapp_account_id,
-        message.from
-      );
-      if (activeExists && conversation.status !== 'active') {
-        logger.info('bot_reply_skipped_active_conversation_exists', {
-          businessId: business.id,
-          conversationId: conversation.id,
-          messageId: message.id,
-          conversationStatus: conversation.status
-        });
-        continue;
-      }
+      await leadService.upsertLeadFromIncomingMessage(business.id, normalizedFromPhone);
 
       // If the conversation is handled by an agent, do not auto-reply with bot.
       if (conversation.status !== 'bot') {
@@ -181,9 +172,9 @@ async function handleIncoming(payload) {
       const replyText = await conversationEngine.generateResponse(incomingText, context, {
         businessId: business.id,
         conversationId: conversation.id,
-        phone: message.from
+        phone: normalizedFromPhone
       });
-      const sendResult = await messageService.sendText({ business, to: message.from, body: replyText });
+      const sendResult = await messageService.sendText({ business, to: normalizedFromPhone, body: replyText });
 
       const outboundMessageId = sendResult?.messages?.[0]?.id || null;
       await saveMessage({
@@ -191,7 +182,7 @@ async function handleIncoming(payload) {
         whatsappAccountId: business.whatsapp_account_id,
         conversationId: conversation.id,
         fromNumber: business.phone_number,
-        toNumber: message.from,
+        toNumber: normalizedFromPhone,
         body: replyText,
         direction: 'outbound',
         status: 'sent'

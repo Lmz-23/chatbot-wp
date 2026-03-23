@@ -1,7 +1,10 @@
 const db = require('../db');
+const { normalizePhone } = require('../utils/phone');
 
 async function resolveConversation(whatsappAccountId, userPhone) {
-  if (!whatsappAccountId || !userPhone) {
+  const normalizedPhone = normalizePhone(userPhone);
+
+  if (!whatsappAccountId || !normalizedPhone) {
     throw new Error('missing_conversation_keys');
   }
 
@@ -9,11 +12,11 @@ async function resolveConversation(whatsappAccountId, userPhone) {
     SELECT id, whatsapp_account_id, user_phone, status, last_message_at, created_at
     FROM conversations
     WHERE whatsapp_account_id = $1
-      AND regexp_replace(user_phone, '\\D', '', 'g') = regexp_replace($2, '\\D', '', 'g')
+      AND regexp_replace(user_phone, '\\D', '', 'g') = $2
     ORDER BY last_message_at DESC NULLS LAST, created_at DESC
     LIMIT 1`;
 
-  const latest = await db.query(findLatestQ, [whatsappAccountId, userPhone]);
+  const latest = await db.query(findLatestQ, [whatsappAccountId, normalizedPhone]);
   if (latest.rows.length) {
     const conversation = latest.rows[0];
 
@@ -50,7 +53,7 @@ async function resolveConversation(whatsappAccountId, userPhone) {
     VALUES ($1, $2, 'bot', now())
     RETURNING id, whatsapp_account_id, user_phone, status, last_message_at, created_at`;
 
-  const created = await db.query(createQ, [whatsappAccountId, userPhone]);
+  const created = await db.query(createQ, [whatsappAccountId, normalizedPhone]);
   return created.rows[0];
 }
 
@@ -227,28 +230,6 @@ async function markConversationActive(conversationId) {
   await db.query(q, [conversationId]);
 }
 
-async function hasActiveConversation(whatsappAccountId, userPhone) {
-  const q = `
-    WITH ranked AS (
-      SELECT
-        status,
-        ROW_NUMBER() OVER (
-          ORDER BY last_message_at DESC NULLS LAST, created_at DESC
-        ) AS rn
-      FROM conversations
-      WHERE whatsapp_account_id = $1
-        AND regexp_replace(user_phone, '\\D', '', 'g') = regexp_replace($2, '\\D', '', 'g')
-    )
-    SELECT 1
-    FROM ranked
-    WHERE rn = 1
-      AND status = 'active'
-    LIMIT 1`;
-
-  const result = await db.query(q, [whatsappAccountId, userPhone]);
-  return result.rows.length > 0;
-}
-
 module.exports = {
   resolveConversation,
   listConversationMessagesByBusiness,
@@ -256,6 +237,5 @@ module.exports = {
   getConversationWithBusiness,
   updateConversationStatusByBusiness,
   saveMessage,
-  markConversationActive,
-  hasActiveConversation
+  markConversationActive
 };

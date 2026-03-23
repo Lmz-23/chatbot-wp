@@ -1,6 +1,8 @@
 const conversationService = require('../services/conversationService');
 const settingsService = require('../services/settingsService');
 const messageService = require('../services/messageService');
+const leadService = require('../services/leadService');
+const { normalizePhone } = require('../utils/phone');
 const logger = require('../utils/logger');
 
 function isUuid(value) {
@@ -140,6 +142,7 @@ async function sendMessage(req, res) {
       token: conversation.token,
       phone_number_id: conversation.phone_number_id
     };
+    const normalizedPhone = normalizePhone(conversation.user_phone);
 
     // Agent takes ownership of the conversation.
     await conversationService.markConversationActive(conversationId);
@@ -148,7 +151,7 @@ async function sendMessage(req, res) {
       // Send via WhatsApp API
       await messageService.sendText({
         business,
-        to: conversation.user_phone,
+        to: normalizedPhone,
         body: text.trim()
       });
 
@@ -159,6 +162,9 @@ async function sendMessage(req, res) {
         text.trim(),
         'agent_sent'
       );
+
+      // The agent can only send from a valid conversation context.
+      await leadService.promoteLeadOnAgentMessage(businessId, normalizedPhone);
 
       logger.info('message_sent_success', {
         conversationId,
