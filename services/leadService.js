@@ -85,6 +85,32 @@ async function upsertLeadFromIncomingMessage(businessId, phone) {
   return result.rows[0] || null;
 }
 
+async function reopenLeadOnIncomingMessage(businessId, phone) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!businessId || !normalizedPhone) return null;
+
+  const q = `
+    UPDATE leads
+    SET status = 'CONTACTED',
+        updated_at = now(),
+        last_interaction_at = now()
+    WHERE business_id = $1
+      AND phone = $2
+      AND status = 'CLOSED'
+    RETURNING
+      id,
+      business_id,
+      phone,
+      name,
+      status,
+      created_at,
+      updated_at,
+      last_interaction_at`;
+
+  const result = await db.query(q, [businessId, normalizedPhone]);
+  return result.rows[0] || null;
+}
+
 async function promoteLeadOnAgentMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -180,6 +206,7 @@ module.exports = {
   createLead,
   findLeadByBusinessAndPhone,
   upsertLeadFromIncomingMessage,
+  reopenLeadOnIncomingMessage,
   promoteLeadOnAgentMessage,
   listLeadsByBusinessId,
   updateLeadByIdAndBusiness
