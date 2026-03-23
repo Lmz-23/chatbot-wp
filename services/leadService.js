@@ -137,7 +137,7 @@ async function updateLeadByIdAndBusiness(leadId, businessId, { name, status }) {
   const params = [leadId, businessId];
 
   if (name !== undefined) {
-    params.push(name === null ? null : String(name).trim());
+    params.push(name === null ? null : String(name));
     updates.push(`name = $${params.length}`);
   }
 

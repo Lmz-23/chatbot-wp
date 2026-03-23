@@ -47,7 +47,7 @@ async function updateLead(req, res) {
     const hasStatus = rawStatus !== undefined;
 
     const name = hasName
-      ? (rawName === null ? null : String(rawName).trim())
+      ? (rawName === null ? null : String(rawName))
       : undefined;
     const status = hasStatus
       ? String(rawStatus).trim().toUpperCase()
