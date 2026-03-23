@@ -185,8 +185,7 @@ async function updateConversationStatusByBusiness(conversationId, businessId, st
       LIMIT 1
     ), updated AS (
       UPDATE conversations c
-      SET status = $3,
-          last_message_at = now()
+      SET status = $3
       FROM target t
       WHERE c.whatsapp_account_id = t.whatsapp_account_id
         AND regexp_replace(c.user_phone, '\\D', '', 'g') = t.phone_norm
@@ -227,8 +226,7 @@ async function markConversationActive(conversationId) {
       LIMIT 1
     )
     UPDATE conversations c
-    SET status = 'active',
-        last_message_at = now()
+    SET status = 'active'
     FROM target t
     WHERE c.whatsapp_account_id = t.whatsapp_account_id
       AND regexp_replace(c.user_phone, '\\D', '', 'g') = t.phone_norm`;

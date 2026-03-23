@@ -164,7 +164,14 @@ async function sendMessage(req, res) {
       );
 
       // The agent can only send from a valid conversation context.
-      await leadService.promoteLeadOnAgentMessage(businessId, normalizedPhone);
+      const leadResult = await leadService.promoteLeadOnAgentMessage(businessId, normalizedPhone);
+      logger.info('lead_promoted_on_agent_message', {
+        conversationId,
+        businessId,
+        phone: normalizedPhone,
+        leadUpdated: leadResult ? true : false,
+        leadStatus: leadResult?.status
+      });
 
       logger.info('message_sent_success', {
         conversationId,

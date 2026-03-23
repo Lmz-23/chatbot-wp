@@ -89,6 +89,9 @@ async function reopenLeadOnIncomingMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
 
+  // When a customer sends an inbound message to a CLOSED lead, reactivate it to CONTACTED.
+  // Do NOT reopen QUALIFIED leads - they're intentionally in that state and client engagement
+  // doesn't automatically demote them (avoid loop: agent promotes → customer replies → demotes again).
   const q = `
     UPDATE leads
     SET status = 'CONTACTED',
@@ -121,7 +124,7 @@ async function promoteLeadOnAgentMessage(businessId, phone) {
     ON CONFLICT (business_id, phone)
     DO UPDATE SET
       status = CASE
-        WHEN leads.status = 'NEW' THEN 'CONTACTED'
+        WHEN leads.status IN ('NEW', 'CLOSED') THEN 'CONTACTED'
         ELSE leads.status
       END,
       updated_at = now(),

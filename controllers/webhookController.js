@@ -156,7 +156,13 @@ async function handleIncoming(payload) {
       });
 
       await leadService.upsertLeadFromIncomingMessage(business.id, normalizedFromPhone);
-      await leadService.reopenLeadOnIncomingMessage(business.id, normalizedFromPhone);
+      const reopenResult = await leadService.reopenLeadOnIncomingMessage(business.id, normalizedFromPhone);
+      logger.info('lead_reopen_attempt', {
+        businessId: business.id,
+        phone: normalizedFromPhone,
+        reopened: reopenResult ? true : false,
+        leadStatus: reopenResult?.status
+      });
 
       // If the conversation is handled by an agent, do not auto-reply with bot.
       if (conversation.status !== 'bot') {
