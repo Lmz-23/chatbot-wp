@@ -28,10 +28,7 @@ app.use(
 
 // Mount routes
 // - /webhook is the main entrypoint for WhatsApp events
-// - /test-whatsapp is a temporary helper for sending test messages; it
-//   should be removed or secured before production.
 app.use('/webhook', require('./routes/webhook'));
-app.use('/', require('./routes/test-whatsapp'));
 app.use('/auth', require('./routes/auth'));
 app.use('/admin/business', require('./routes/business-admin'));
 app.use('/business', require('./routes/business-settings'));
