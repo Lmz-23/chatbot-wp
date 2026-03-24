@@ -18,9 +18,20 @@ async function login(req, res) {
     const result = await authService.login(email.trim().toLowerCase(), password);
     return res.status(200).json({ ok: true, token: result.token });
   } catch (err) {
+    const message = err && err.message ? String(err.message) : '';
+
     if (err.code === 'INVALID_CREDENTIALS') {
       return res.status(401).json({ error: 'invalid email or password' });
     }
+
+    if (/password authentication failed/i.test(message)) {
+      return res.status(500).json({ error: 'db_auth_failed' });
+    }
+
+    if (/getaddrinfo|ENOTFOUND|ECONNREFUSED|ECONNRESET/i.test(message)) {
+      return res.status(500).json({ error: 'db_connection_failed' });
+    }
+
     logger.error('login_failed', { err: err && err.message ? err.message : err });
     return res.status(500).json({ error: 'internal_error' });
   }

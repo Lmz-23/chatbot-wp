@@ -114,14 +114,31 @@ async function listBusinessConversations(businessId, limit = 50, offset = 0) {
       c.last_message_at,
       c.created_at,
       lm.body AS last_message_text,
-      lm.direction AS last_message_direction
+      lm.direction AS last_message_direction,
+      lm.status AS last_message_status,
+      lm.sender_type AS last_message_sender_type,
+      lm.created_at AS last_message_created_at
     FROM ranked_conversations c
     INNER JOIN whatsapp_accounts wa ON wa.id = c.whatsapp_account_id
     LEFT JOIN leads l
       ON l.business_id = wa.business_id
       AND regexp_replace(l.phone, '\\D', '', 'g') = regexp_replace(c.user_phone, '\\D', '', 'g')
     LEFT JOIN LATERAL (
-      SELECT m.body, m.direction
+      SELECT
+        m.body,
+        m.direction,
+        m.status,
+        m.created_at,
+        CASE
+          WHEN m.direction = 'inbound' THEN 'customer'
+          WHEN m.direction = 'incoming' THEN 'customer'
+          WHEN m.direction = 'outgoing' THEN 'agent'
+          WHEN m.direction = 'outbound' AND m.status IN ('agent_sent', 'agent_failed') THEN 'agent'
+          WHEN m.direction = 'outbound' THEN 'bot'
+          WHEN m.from_number = c.user_phone THEN 'customer'
+          WHEN m.to_number = c.user_phone THEN 'bot'
+          ELSE 'unknown'
+        END AS sender_type
       FROM messages m
       INNER JOIN conversations c2 ON c2.id = m.conversation_id
       WHERE c2.whatsapp_account_id = c.whatsapp_account_id
