@@ -3,6 +3,7 @@ const userService = require('../services/userService');
 const membershipService = require('../services/membershipService');
 const logger = require('../utils/logger');
 
+// Validates credentials and issues a JWT for dashboard access.
 async function login(req, res) {
   try {
     const { email, password } = req.body || {};
@@ -37,6 +38,7 @@ async function login(req, res) {
   }
 }
 
+// Returns the authenticated user profile and current business membership.
 async function me(req, res) {
   try {
     const user = await userService.findById(req.user.userId);
@@ -58,6 +60,7 @@ async function me(req, res) {
   }
 }
 
+// Lists businesses linked to the authenticated user.
 async function getUserBusinesses(req, res) {
   try {
     if (!req.user || !req.user.userId) {
@@ -72,6 +75,7 @@ async function getUserBusinesses(req, res) {
   }
 }
 
+// Creates a new tenant owner account and returns an auth token.
 async function register(req, res) {
   try {
     const { email, password, businessName } = req.body || {};

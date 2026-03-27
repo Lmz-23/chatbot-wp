@@ -25,6 +25,7 @@ function verifyToken(token) {
   return jwt.verify(token, JWT_SECRET);
 }
 
+// Authenticates credentials and returns a signed JWT with tenant context.
 async function login(email, password) {
   const user = await userService.findByEmail(email);
   if (!user) {
@@ -57,6 +58,7 @@ async function login(email, password) {
   };
 }
 
+// Creates user + business + owner membership in a single transaction.
 async function register({ email, password, businessName }) {
   const passwordHash = await bcrypt.hash(password, 10);
 

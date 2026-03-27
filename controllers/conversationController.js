@@ -10,6 +10,7 @@ function isUuid(value) {
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+// Lists business conversations with pagination and ownership checks.
 async function listBusinessConversations(req, res) {
   try {
     const businessId = req.user && req.user.businessId;
@@ -59,6 +60,7 @@ async function listBusinessConversations(req, res) {
   }
 }
 
+// Returns full message history for a conversation thread.
 async function getConversationMessages(req, res) {
   try {
     const businessId = req.user && req.user.businessId;
@@ -99,6 +101,7 @@ async function getConversationMessages(req, res) {
   }
 }
 
+// Sends an agent message, persists it, and promotes lead/conversation state.
 async function sendMessage(req, res) {
   try {
     const businessId = req.user && req.user.businessId;
@@ -212,6 +215,7 @@ async function sendMessage(req, res) {
   }
 }
 
+// Manually sets conversation ownership state (active/closed).
 async function updateConversationStatus(req, res) {
   try {
     const businessId = req.user && req.user.businessId;

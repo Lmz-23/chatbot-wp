@@ -1,5 +1,6 @@
 const db = require('../db');
 
+// Fetches user auth profile by email including membership context.
 async function findByEmail(email) {
   if (!email) return null;
 
@@ -15,6 +16,7 @@ async function findByEmail(email) {
   return result.rows[0] || null;
 }
 
+// Fetches user profile by id including membership context.
 async function findById(userId) {
   if (!userId) return null;
 
@@ -30,6 +32,7 @@ async function findById(userId) {
   return result.rows[0] || null;
 }
 
+// Creates a platform user record.
 async function createUser(email, passwordHash, platformRole = 'USER') {
   const q = `
     INSERT INTO users (email, password_hash, platform_role)

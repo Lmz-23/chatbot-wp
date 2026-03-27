@@ -9,6 +9,7 @@ function isUuid(value) {
 
 const ALLOWED_STATUSES = new Set(['NEW', 'CONTACTED', 'QUALIFIED', 'CLOSED']);
 
+// Lists tenant leads for CRM board rendering.
 async function listBusinessLeads(req, res) {
   try {
     const businessId = req.user && req.user.businessId;
@@ -36,6 +37,7 @@ async function listBusinessLeads(req, res) {
   }
 }
 
+// Applies partial lead updates (name/status) with tenant scoping.
 async function updateLead(req, res) {
   try {
     const businessId = req.user && req.user.businessId;

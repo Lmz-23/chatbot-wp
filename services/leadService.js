@@ -3,6 +3,7 @@ const { normalizePhone } = require('../utils/phone');
 
 const ALLOWED_LEAD_STATUSES = new Set(['NEW', 'CONTACTED', 'QUALIFIED', 'CLOSED']);
 
+// Looks up a single lead by tenant + normalized phone.
 async function findLeadByBusinessAndPhone(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -26,6 +27,7 @@ async function findLeadByBusinessAndPhone(businessId, phone) {
   return result.rows[0] || null;
 }
 
+// Creates (or refreshes) a lead while preserving current status on conflict.
 async function createLead(businessId, phone, status = 'NEW', name = null) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) {
@@ -60,6 +62,7 @@ async function createLead(businessId, phone, status = 'NEW', name = null) {
   return result.rows[0] || null;
 }
 
+// Ensures an inbound customer message always has an associated lead.
 async function upsertLeadFromIncomingMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -85,6 +88,7 @@ async function upsertLeadFromIncomingMessage(businessId, phone) {
   return result.rows[0] || null;
 }
 
+// Reopens CLOSED leads to CONTACTED when a customer returns.
 async function reopenLeadOnIncomingMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -114,6 +118,7 @@ async function reopenLeadOnIncomingMessage(businessId, phone) {
   return result.rows[0] || null;
 }
 
+// Moves NEW/CLOSED leads to CONTACTED when an agent sends a message.
 async function promoteLeadOnAgentMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -143,6 +148,7 @@ async function promoteLeadOnAgentMessage(businessId, phone) {
   return result.rows[0] || null;
 }
 
+// Lists tenant leads ordered by most recent interaction.
 async function listLeadsByBusinessId(businessId) {
   const q = `
     SELECT
@@ -161,6 +167,7 @@ async function listLeadsByBusinessId(businessId) {
   return result.rows;
 }
 
+// Partially updates lead fields with tenant scoping and status validation.
 async function updateLeadByIdAndBusiness(leadId, businessId, { name, status }) {
   const updates = [];
   const params = [leadId, businessId];

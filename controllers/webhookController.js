@@ -13,6 +13,7 @@ const logger = require('../utils/logger');
 const processed = new Map();
 const DEDUPE_TTL_MS = 1000 * 60 * 5;
 
+// Stores webhook messages idempotently so Meta retries don't duplicate rows.
 async function saveMessage({
   messageId,
   whatsappAccountId,
@@ -52,6 +53,7 @@ async function saveMessage({
   ]);
 }
 
+// Updates delivery/read status for previously stored outbound messages.
 async function updateMessageStatus({ messageId, status }) {
   if (!messageId || !status) return;
 

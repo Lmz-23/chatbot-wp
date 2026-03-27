@@ -5,9 +5,49 @@ const db = require('./db');
 
 const app = express();
 
+function isPrivateNetworkHost(hostname = '') {
+  return (
+    /^localhost$/i.test(hostname)
+    || /^127\.0\.0\.1$/.test(hostname)
+    || /^10\./.test(hostname)
+    || /^192\.168\./.test(hostname)
+    || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+  );
+}
+
+function buildAllowedOrigins() {
+  const configured = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return new Set(configured);
+}
+
+const allowedOrigins = buildAllowedOrigins();
+
 // Enable CORS for frontend development
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+  const requestOrigin = req.headers.origin || '';
+  let allowOrigin = '*';
+
+  if (requestOrigin) {
+    try {
+      const parsedOrigin = new URL(requestOrigin);
+      const isDevPrivateOrigin = process.env.NODE_ENV !== 'production' && isPrivateNetworkHost(parsedOrigin.hostname);
+
+      if (allowedOrigins.size === 0) {
+        allowOrigin = '*';
+      } else if (allowedOrigins.has(requestOrigin) || isDevPrivateOrigin) {
+        allowOrigin = requestOrigin;
+      }
+    } catch {
+      // Keep wildcard fallback for invalid Origin header values.
+    }
+  }
+
+  res.header('Access-Control-Allow-Origin', allowOrigin);
+  res.header('Vary', 'Origin');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') {

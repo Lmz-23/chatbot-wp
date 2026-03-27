@@ -3,6 +3,7 @@ const membershipService = require('../services/membershipService');
 const settingsService = require('../services/settingsService');
 const logger = require('../utils/logger');
 
+// Creates a tenant business and optionally links the creator as OWNER.
 async function createBusiness(req, res) {
   try {
     const { name } = req.body || {};

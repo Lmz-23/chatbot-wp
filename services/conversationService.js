@@ -1,6 +1,7 @@
 const db = require('../db');
 const { normalizePhone } = require('../utils/phone');
 
+// Returns the latest conversation for a user and reopens it from CLOSED to BOT when needed.
 async function resolveConversation(whatsappAccountId, userPhone) {
   const normalizedPhone = normalizePhone(userPhone);
 
@@ -48,6 +49,7 @@ async function resolveConversation(whatsappAccountId, userPhone) {
   return created.rows[0];
 }
 
+// Lists all messages for the logical conversation thread scoped by business ownership.
 async function listConversationMessagesByBusiness(conversationId, businessId) {
   const q = `
     WITH target AS (
@@ -91,6 +93,7 @@ async function listConversationMessagesByBusiness(conversationId, businessId) {
   return result.rows;
 }
 
+// Lists business conversations with latest message metadata and lead linkage.
 async function listBusinessConversations(businessId, limit = 50, offset = 0) {
   const q = `
     WITH ranked_conversations AS (
@@ -156,6 +159,7 @@ async function listBusinessConversations(businessId, limit = 50, offset = 0) {
   return result.rows;
 }
 
+// Validates conversation ownership and returns tenant-aware sending context.
 async function getConversationWithBusiness(conversationId, businessId) {
   const q = `
     SELECT
@@ -180,6 +184,7 @@ async function getConversationWithBusiness(conversationId, businessId) {
   return result.rows[0];
 }
 
+// Updates status for all duplicated rows that represent the same phone thread.
 async function updateConversationStatusByBusiness(conversationId, businessId, status) {
   const q = `
     WITH target AS (
@@ -208,6 +213,7 @@ async function updateConversationStatusByBusiness(conversationId, businessId, st
   return result.rows[0] || null;
 }
 
+// Persists an outbound/inbound message snapshot used by UI and analytics.
 async function saveMessage(conversationId, direction, body, status = 'sent') {
   const q = `
     INSERT INTO messages (
@@ -223,6 +229,7 @@ async function saveMessage(conversationId, direction, body, status = 'sent') {
   return result.rows[0];
 }
 
+// Promotes the whole phone thread to active to mark agent takeover.
 async function markConversationActive(conversationId) {
   const q = `
     WITH target AS (
