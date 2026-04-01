@@ -70,6 +70,7 @@ app.use(
 // - /webhook is the main entrypoint for WhatsApp events
 app.use('/webhook', require('./routes/webhook'));
 app.use('/auth', require('./routes/auth'));
+app.use('/api', require('./routes/api-settings'));
 app.use('/admin/business', require('./routes/business-admin'));
 app.use('/business', require('./routes/business-settings'));
 app.use('/business', require('./routes/business-leads'));

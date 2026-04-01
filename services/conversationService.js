@@ -10,7 +10,7 @@ async function resolveConversation(whatsappAccountId, userPhone) {
   }
 
   const findLatestQ = `
-    SELECT id, whatsapp_account_id, user_phone, status, last_message_at, created_at
+    SELECT id, whatsapp_account_id, user_phone, status, current_node, last_message_at, created_at
     FROM conversations
     WHERE whatsapp_account_id = $1
       AND regexp_replace(user_phone, '\\D', '', 'g') = $2
@@ -28,7 +28,8 @@ async function resolveConversation(whatsappAccountId, userPhone) {
       );
       return {
         ...conversation,
-        status: 'bot'
+        status: 'bot',
+        current_node: conversation.current_node || 'start'
       };
     }
 
@@ -43,10 +44,34 @@ async function resolveConversation(whatsappAccountId, userPhone) {
       last_message_at
     )
     VALUES ($1, $2, 'bot', now())
-    RETURNING id, whatsapp_account_id, user_phone, status, last_message_at, created_at`;
+    RETURNING id, whatsapp_account_id, user_phone, status, current_node, last_message_at, created_at`;
 
   const created = await db.query(createQ, [whatsappAccountId, normalizedPhone]);
   return created.rows[0];
+}
+
+// Updates the flow node for the whole logical thread represented by a conversation id.
+async function updateConversationCurrentNodeByBusiness(conversationId, businessId, currentNode) {
+  const q = `
+    WITH target AS (
+      SELECT
+        c.whatsapp_account_id,
+        regexp_replace(c.user_phone, '\\D', '', 'g') AS phone_norm
+      FROM conversations c
+      INNER JOIN whatsapp_accounts wa ON wa.id = c.whatsapp_account_id
+      WHERE c.id = $1
+        AND wa.business_id = $2
+      LIMIT 1
+    )
+    UPDATE conversations c
+    SET current_node = $3
+    FROM target t
+    WHERE c.whatsapp_account_id = t.whatsapp_account_id
+      AND regexp_replace(c.user_phone, '\\D', '', 'g') = t.phone_norm
+    RETURNING c.id, c.user_phone, c.status, c.current_node, c.last_message_at, c.created_at`;
+
+  const result = await db.query(q, [conversationId, businessId, currentNode || 'start']);
+  return result.rows[0] || null;
 }
 
 // Lists all messages for the logical conversation thread scoped by business ownership.
@@ -167,6 +192,7 @@ async function getConversationWithBusiness(conversationId, businessId) {
       c.whatsapp_account_id,
       c.user_phone,
       c.status,
+      c.current_node,
       wa.id AS whatsapp_account_id,
       wa.phone_number_id,
       wa.phone_number,
@@ -255,6 +281,7 @@ module.exports = {
   listBusinessConversations,
   getConversationWithBusiness,
   updateConversationStatusByBusiness,
+  updateConversationCurrentNodeByBusiness,
   saveMessage,
   markConversationActive
 };

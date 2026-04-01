@@ -1,3 +1,5 @@
 .env
 node_modules
-context.md
+copilot-instruction.md
+.github\agents
+global-bundel.pem

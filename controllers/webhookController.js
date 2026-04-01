@@ -178,12 +178,42 @@ async function handleIncoming(payload) {
       }
 
       const context = await contextService.getConversationContext(conversation.id);
-      const replyText = await conversationEngine.generateResponse(incomingText, context, {
+      const engineResult = await conversationEngine.generateResponse(incomingText, context, {
         businessId: business.id,
         conversationId: conversation.id,
         phone: normalizedFromPhone
       });
-      const sendResult = await messageService.sendText({ business, to: normalizedFromPhone, body: replyText });
+
+      if (engineResult.shouldActivateConversation) {
+        try {
+          await conversationService.updateConversationCurrentNodeByBusiness(
+            conversation.id,
+            business.id,
+            engineResult.nextNodeId || 'escalate_agent'
+          );
+          await conversationService.updateConversationStatusByBusiness(conversation.id, business.id, 'active');
+          logger.info('conversation_escalated_to_agent', {
+            businessId: business.id,
+            conversationId: conversation.id,
+            currentNodeId: engineResult.currentNodeId,
+            nextNodeId: engineResult.nextNodeId || 'escalate_agent'
+          });
+        } catch (flowErr) {
+          logger.error('conversation_escalation_failed', {
+            businessId: business.id,
+            conversationId: conversation.id,
+            err: flowErr && flowErr.message ? flowErr.message : flowErr
+          });
+        }
+
+        continue;
+      }
+
+      if (!engineResult.shouldSendMessage || !engineResult.replyText) {
+        continue;
+      }
+
+      const sendResult = await messageService.sendText({ business, to: normalizedFromPhone, body: engineResult.replyText });
 
       const outboundMessageId = sendResult?.messages?.[0]?.id || null;
       await saveMessage({
@@ -192,10 +222,27 @@ async function handleIncoming(payload) {
         conversationId: conversation.id,
         fromNumber: business.phone_number,
         toNumber: normalizedFromPhone,
-        body: replyText,
+        body: engineResult.replyText,
         direction: 'outbound',
         status: 'sent'
       });
+
+      if (engineResult.usedFlow && engineResult.nextNodeId) {
+        try {
+          await conversationService.updateConversationCurrentNodeByBusiness(
+            conversation.id,
+            business.id,
+            engineResult.nextNodeId
+          );
+        } catch (nodeErr) {
+          logger.error('conversation_node_update_failed', {
+            businessId: business.id,
+            conversationId: conversation.id,
+            nextNodeId: engineResult.nextNodeId,
+            err: nodeErr && nodeErr.message ? nodeErr.message : nodeErr
+          });
+        }
+      }
 
       logger.info('reply_sent', {
         businessId: business.id,

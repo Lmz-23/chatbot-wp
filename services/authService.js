@@ -2,6 +2,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const userService = require('./userService');
 const db = require('../db');
+const botFlowService = require('./botFlowService');
+const { defaultClinicBotFlowNodes } = require('../db/models');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -96,6 +98,15 @@ async function register({ email, password, businessName }) {
     );
 
     await client.query('COMMIT');
+
+    try {
+      await botFlowService.saveFlow(businessId, defaultClinicBotFlowNodes);
+    } catch (flowErr) {
+      require('../utils/logger').warn('default_bot_flow_seed_failed', {
+        businessId,
+        err: flowErr && flowErr.message ? flowErr.message : flowErr
+      });
+    }
 
     const token = generateToken(buildTokenPayload({
       userId,

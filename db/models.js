@@ -5,6 +5,167 @@ CREATE TABLE IF NOT EXISTS businesses (
   created_at TIMESTAMPTZ DEFAULT now()
 );`;
 
+const defaultClinicBotFlowNodes = [
+  {
+    id: 'start',
+    message: 'Hola, soy el asistente de Replai para la clínica. ¿Buscas una cita, precios, horarios o hablar con un agente?',
+    transitions: [
+      { keywords: ['general', 'medicina', 'consulta general'], next: 'appointment_general' },
+      { keywords: ['dental', 'dentista', 'odontologia', 'odonto', 'muela'], next: 'appointment_dental' },
+      { keywords: ['precio', 'precios', 'costo', 'costos', 'tarifa', 'cotizacion'], next: 'ask_service_price' },
+      { keywords: ['horario', 'horarios', 'hora', 'abierto', 'atencion'], next: 'hours_info' },
+      { keywords: ['urgente', 'dolor', 'sangrado', 'emergencia'], next: 'escalate_urgent' },
+      { keywords: ['agente', 'humano', 'asesor', 'persona'], next: 'escalate_agent' }
+    ],
+    default: 'ask_specialty'
+  },
+  {
+    id: 'ask_specialty',
+    message: '¿Qué tipo de atención necesitas? Puedo ayudarte con medicina general o con odontología.',
+    transitions: [
+      { keywords: ['general', 'medicina', 'consulta'], next: 'appointment_general' },
+      { keywords: ['dental', 'dentista', 'odontologia', 'muela'], next: 'appointment_dental' },
+      { keywords: ['precio', 'costo', 'tarifa'], next: 'ask_service_price' },
+      { keywords: ['horario', 'hora', 'abierto'], next: 'hours_info' },
+      { keywords: ['urgente', 'dolor', 'emergencia'], next: 'escalate_urgent' },
+      { keywords: ['agente', 'humano', 'asesor'], next: 'escalate_agent' }
+    ],
+    default: 'fallback'
+  },
+  {
+    id: 'appointment_general',
+    message: 'Perfecto, te ayudo con una cita de medicina general. Compárteme tu nombre y número de teléfono para continuar.',
+    transitions: [
+      { keywords: ['precio', 'costo', 'tarifa'], next: 'ask_service_price' },
+      { keywords: ['horario', 'hora', 'abierto'], next: 'hours_info' },
+      { keywords: ['urgente', 'dolor', 'emergencia'], next: 'escalate_urgent' },
+      { keywords: ['agente', 'humano', 'asesor'], next: 'escalate_agent' }
+    ],
+    default: 'capture_data'
+  },
+  {
+    id: 'appointment_dental',
+    message: 'Perfecto, te ayudo con una cita de odontología. Compárteme tu nombre y número de teléfono para continuar.',
+    transitions: [
+      { keywords: ['precio', 'costo', 'tarifa'], next: 'ask_service_price' },
+      { keywords: ['horario', 'hora', 'abierto'], next: 'hours_info' },
+      { keywords: ['urgente', 'dolor', 'emergencia'], next: 'escalate_urgent' },
+      { keywords: ['agente', 'humano', 'asesor'], next: 'escalate_agent' }
+    ],
+    default: 'capture_data'
+  },
+  {
+    id: 'ask_service_price',
+    message: 'Claro. ¿Deseas el precio de medicina general o de odontología?',
+    transitions: [
+      { keywords: ['general', 'medicina'], next: 'price_general' },
+      { keywords: ['dental', 'dentista', 'odontologia'], next: 'price_general' },
+      { keywords: ['agendar', 'cita', 'reservar'], next: 'capture_data' },
+      { keywords: ['horario', 'hora', 'abierto'], next: 'hours_info' }
+    ],
+    default: 'price_general'
+  },
+  {
+    id: 'price_general',
+    message: 'El precio puede variar según el servicio y la valoración. Si quieres, puedo ayudarte a agendar o enviarte con un agente.',
+    transitions: [
+      { keywords: ['agendar', 'cita', 'reservar'], next: 'capture_data' },
+      { keywords: ['horario', 'hora', 'abierto'], next: 'hours_info' },
+      { keywords: ['agente', 'humano', 'asesor'], next: 'escalate_agent' }
+    ],
+    default: 'capture_data'
+  },
+  {
+    id: 'hours_info',
+    message: 'Atendemos de lunes a viernes de 8:00 a 18:00 y sábados de 8:00 a 14:00.',
+    transitions: [
+      { keywords: ['agendar', 'cita', 'reservar'], next: 'capture_data' },
+      { keywords: ['precio', 'costo', 'tarifa'], next: 'ask_service_price' },
+      { keywords: ['agente', 'humano', 'asesor'], next: 'escalate_agent' }
+    ],
+    default: 'fallback'
+  },
+  {
+    id: 'capture_data',
+    message: 'Perfecto. Envíame tu nombre completo y tu número de teléfono para confirmar la cita.',
+    transitions: [
+      { keywords: ['urgente', 'dolor', 'emergencia'], next: 'escalate_urgent' },
+      { keywords: ['agente', 'humano', 'asesor'], next: 'escalate_agent' },
+      { keywords: ['precio', 'costo', 'tarifa'], next: 'ask_service_price' }
+    ],
+    default: 'escalate_agent'
+  },
+  {
+    id: 'escalate_urgent',
+    message: 'Si se trata de una urgencia, acude al servicio de emergencias más cercano o espera la atención de un agente.',
+    transitions: [
+      { keywords: ['agente', 'humano', 'asesor'], next: 'escalate_agent' },
+      { keywords: ['cita', 'agendar'], next: 'capture_data' }
+    ],
+    default: 'escalate_agent'
+  },
+  {
+    id: 'escalate_agent',
+    message: 'Te conecto con un agente. En breve te atenderemos.',
+    transitions: [
+      { keywords: ['cita', 'agendar', 'reservar'], next: 'capture_data' },
+      { keywords: ['precio', 'costo', 'tarifa'], next: 'ask_service_price' }
+    ],
+    default: 'fallback'
+  },
+  {
+    id: 'fallback',
+    message: 'No te entendí del todo. Puedo ayudarte con citas, precios, horarios o con un agente.',
+    transitions: [
+      { keywords: ['general', 'medicina'], next: 'appointment_general' },
+      { keywords: ['dental', 'dentista', 'odontologia'], next: 'appointment_dental' },
+      { keywords: ['precio', 'costo', 'tarifa'], next: 'ask_service_price' },
+      { keywords: ['horario', 'hora', 'abierto'], next: 'hours_info' },
+      { keywords: ['agente', 'humano', 'asesor'], next: 'escalate_agent' }
+    ],
+    default: 'start'
+  }
+];
+
+const createBotFlowsTable = `
+CREATE TABLE IF NOT EXISTS bot_flows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  nodes JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);`;
+
+const createBotFlowsBusinessIndex = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_flows_business_id_unique
+  ON bot_flows (business_id);`;
+
+const migrateConversationsCurrentNodeColumn = `
+DO $$
+BEGIN
+  ALTER TABLE conversations
+    ADD COLUMN IF NOT EXISTS current_node VARCHAR(50) DEFAULT 'start';
+
+  UPDATE conversations
+  SET current_node = COALESCE(current_node, 'start');
+
+  ALTER TABLE conversations
+    ALTER COLUMN current_node SET DEFAULT 'start';
+EXCEPTION WHEN undefined_table THEN
+  NULL;
+END $$;`;
+
+const seedDefaultClinicBotFlows = `
+INSERT INTO bot_flows (business_id, nodes)
+SELECT b.id, '${JSON.stringify(defaultClinicBotFlowNodes)}'::jsonb
+FROM businesses b
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM bot_flows bf
+  WHERE bf.business_id = b.id
+)
+ON CONFLICT (business_id) DO NOTHING;`;
+
 const createWhatsappAccountsTable = `
 CREATE TABLE IF NOT EXISTS whatsapp_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -21,6 +182,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   whatsapp_account_id UUID NOT NULL REFERENCES whatsapp_accounts(id) ON DELETE CASCADE,
   user_phone TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'bot' CHECK (status IN ('bot', 'active', 'closed')),
+  current_node VARCHAR(50) DEFAULT 'start',
   last_message_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );`;
@@ -244,6 +406,11 @@ CREATE TABLE IF NOT EXISTS logs (
 
 module.exports = {
   createBusinessesTable,
+  defaultClinicBotFlowNodes,
+  createBotFlowsTable,
+  createBotFlowsBusinessIndex,
+  migrateConversationsCurrentNodeColumn,
+  seedDefaultClinicBotFlows,
   createWhatsappAccountsTable,
   createConversationsTable,
   migrateConversationStatusConstraint,

@@ -41,8 +41,12 @@ async function init() {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await query(models.createBusinessesTable);
+      await query(models.createBotFlowsTable);
+      await query(models.createBotFlowsBusinessIndex);
+      await query(models.seedDefaultClinicBotFlows);
       await query(models.createWhatsappAccountsTable);
       await query(models.createConversationsTable);
+      await query(models.migrateConversationsCurrentNodeColumn);
       await query(models.migrateConversationStatusConstraint);
       await query(models.createConversationsIndex);
       await query(models.createConversationsActiveIndex);
