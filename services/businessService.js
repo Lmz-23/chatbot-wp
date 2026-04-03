@@ -55,4 +55,24 @@ async function getByPhoneNumberId(phoneNumberId) {
   }
 }
 
-module.exports = { getByPhoneNumberId };
+async function getById(businessId) {
+  if (!businessId) return null;
+
+  try {
+    const q = `
+      SELECT id, name, created_at
+      FROM businesses
+      WHERE id = $1
+      LIMIT 1`;
+    const { rows } = await db.query(q, [businessId]);
+    return rows[0] || null;
+  } catch (err) {
+    logger.error('business_lookup_by_id_failed', {
+      businessId,
+      err: err && err.message ? err.message : err
+    });
+    return null;
+  }
+}
+
+module.exports = { getByPhoneNumberId, getById };

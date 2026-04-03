@@ -3,6 +3,7 @@ const leadService = require('./leadService');
 const settingsService = require('./settingsService');
 const botFlowService = require('./botFlowService');
 const conversationService = require('./conversationService');
+const businessService = require('./businessService');
 const logger = require('../utils/logger');
 
 const DEFAULT_MESSAGES = {
@@ -38,6 +39,16 @@ function matchTransition(node, messageText) {
   }
 
   return node?.default || null;
+}
+
+function replaceBusinessPlaceholders(text, businessName) {
+  if (typeof text !== 'string') return text;
+
+  const normalizedBusinessName = (businessName || '').toString().trim();
+  if (!normalizedBusinessName) return text;
+
+  // Replaces any token like [Nombre Clinica], [Negocio], [Empresa], etc.
+  return text.replace(/\[[^\]]+\]/g, normalizedBusinessName);
 }
 
 async function buildLegacyResponse(message, context, meta = {}) {
@@ -154,6 +165,17 @@ async function generateResponse(message, context, meta = {}) {
     return buildLegacyResponse(message, context, meta);
   }
 
+  let businessName = null;
+  try {
+    const business = await businessService.getById(businessId);
+    businessName = business && business.name ? business.name : null;
+  } catch (err) {
+    logger.warn('business_name_load_failed', {
+      businessId,
+      err: err && err.message ? err.message : err
+    });
+  }
+
   let flow = null;
   try {
     flow = await botFlowService.getFlowByBusiness(businessId);
@@ -200,7 +222,7 @@ async function generateResponse(message, context, meta = {}) {
   }
 
   return {
-    replyText: nextNode.message,
+    replyText: replaceBusinessPlaceholders(nextNode.message, businessName),
     nextNodeId: nextNode.id,
     shouldSendMessage: true,
     shouldActivateConversation: false,
