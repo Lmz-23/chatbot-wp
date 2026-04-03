@@ -370,10 +370,30 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
   platform_role TEXT NOT NULL DEFAULT 'USER'
     CHECK (platform_role IN ('PLATFORM_ADMIN', 'USER')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );`;
+
+const migrateUsersIsActiveColumn = `
+DO $$
+BEGIN
+  ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+  UPDATE users
+  SET is_active = true
+  WHERE is_active IS DISTINCT FROM true;
+
+  ALTER TABLE users
+    ALTER COLUMN is_active SET DEFAULT true;
+
+  ALTER TABLE users
+    ALTER COLUMN is_active SET NOT NULL;
+EXCEPTION WHEN undefined_table THEN
+  NULL;
+END $$;`;
 
 const createUsersEmailIndex = `
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email
@@ -428,6 +448,7 @@ module.exports = {
   createLeadsBusinessCreatedAtIndex,
   createBusinessSettingsTable,
   createUsersTable,
+  migrateUsersIsActiveColumn,
   createUsersEmailIndex,
   createMembershipsTable,
   createMembershipsUserIndex,

@@ -5,7 +5,7 @@ async function findByEmail(email) {
   if (!email) return null;
 
   const q = `
-    SELECT u.id, u.email, u.password_hash, u.platform_role,
+    SELECT u.id, u.email, u.password_hash, u.is_active, u.platform_role,
            m.business_id, m.role AS membership_role
     FROM users u
     LEFT JOIN memberships m ON m.user_id = u.id
@@ -21,7 +21,7 @@ async function findById(userId) {
   if (!userId) return null;
 
   const q = `
-    SELECT u.id, u.email, u.platform_role,
+    SELECT u.id, u.email, u.is_active, u.platform_role,
            m.business_id, m.role AS membership_role
     FROM users u
     LEFT JOIN memberships m ON m.user_id = u.id
@@ -35,9 +35,9 @@ async function findById(userId) {
 // Creates a platform user record.
 async function createUser(email, passwordHash, platformRole = 'USER') {
   const q = `
-    INSERT INTO users (email, password_hash, platform_role)
-    VALUES ($1, $2, $3)
-    RETURNING id, email, platform_role, created_at`;
+    INSERT INTO users (email, password_hash, is_active, platform_role)
+    VALUES ($1, $2, true, $3)
+    RETURNING id, email, is_active, platform_role, created_at`;
 
   const result = await db.query(q, [email, passwordHash, platformRole]);
   return result.rows[0];

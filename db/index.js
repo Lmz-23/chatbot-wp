@@ -62,6 +62,7 @@ async function init() {
       await query(models.createLeadsBusinessCreatedAtIndex);
       await query(models.createBusinessSettingsTable);
       await query(models.createUsersTable);
+      await query(models.migrateUsersIsActiveColumn);
       await query(models.createUsersEmailIndex);
       await query(models.createMembershipsTable);
       await query(models.createMembershipsUserIndex);

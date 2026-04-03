@@ -21,6 +21,10 @@ async function login(req, res) {
   } catch (err) {
     const message = err && err.message ? String(err.message) : '';
 
+    if (err.code === 'ACCOUNT_DISABLED') {
+      return res.status(403).json({ error: 'Tu cuenta ha sido desactivada. Contacta al administrador.' });
+    }
+
     if (err.code === 'INVALID_CREDENTIALS') {
       return res.status(401).json({ error: 'invalid email or password' });
     }

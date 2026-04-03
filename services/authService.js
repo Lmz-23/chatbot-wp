@@ -36,6 +36,12 @@ async function login(email, password) {
     throw err;
   }
 
+  if (user.is_active === false) {
+    const err = new Error('ACCOUNT_DISABLED');
+    err.code = 'ACCOUNT_DISABLED';
+    throw err;
+  }
+
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
     const err = new Error('INVALID_CREDENTIALS');
@@ -76,8 +82,8 @@ async function register({ email, password, businessName }) {
     }
 
     const userResult = await client.query(
-      `INSERT INTO users (email, password_hash, platform_role)
-       VALUES ($1, $2, 'USER')
+      `INSERT INTO users (email, password_hash, is_active, platform_role)
+       VALUES ($1, $2, true, 'USER')
        RETURNING id`,
       [email, passwordHash]
     );
