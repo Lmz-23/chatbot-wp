@@ -390,7 +390,7 @@ async function deleteBusinessById({ businessId, adminUserId, adminPassword }) {
 
   const validPassword = await bcrypt.compare(adminPassword, admin.password_hash);
   if (!validPassword) {
-    throw createError('invalid admin password', 'INVALID_ADMIN_PASSWORD', 401);
+    throw createError('invalid admin password', 'INVALID_ADMIN_PASSWORD', 403);
   }
 
   const businessCheck = await db.query('SELECT id, name FROM businesses WHERE id = $1 LIMIT 1', [businessId]);

@@ -11,7 +11,7 @@ function mapErrorToResponse(err, res) {
   }
 
   if (err && err.code === 'INVALID_ADMIN_PASSWORD') {
-    return res.status(401).json({ ok: false, error: 'Contraseña de administrador incorrecta' });
+    return res.status(403).json({ ok: false, error: 'Contrasena de administrador incorrecta' });
   }
 
   if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
