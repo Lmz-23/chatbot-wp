@@ -19,16 +19,21 @@ jobs:
           port: ${{ secrets.EC2_SSH_PORT }}
           script_stop: true
           script: |
-            set -euo pipefail
+            set -e
 
+            echo "=== Entrando al proyecto ==="
             cd "${{ secrets.EC2_PROJECT_PATH }}"
 
+            echo "=== Guardando commit actual ==="
             PREV_HEAD=$(git rev-parse HEAD)
 
+            echo "=== Haciendo git pull ==="
             git pull origin main
 
+            echo "=== Guardando nuevo commit ==="
             NEW_HEAD=$(git rev-parse HEAD)
 
+            echo "=== Revisando cambios en package.json ==="
             if git diff --name-only "$PREV_HEAD" "$NEW_HEAD" | grep -Eq '(^|/)package\.json$'; then
               echo "package.json changed -> running npm install --production"
               npm install --production
@@ -36,12 +41,16 @@ jobs:
               echo "package.json unchanged -> skipping npm install"
             fi
 
+            echo "=== Verificando PM2 ==="
             /usr/bin/pm2 list
 
-            if ! /usr/bin/pm2 restart replai-backend; then
-              echo "PM2 restart failed. Showing last 20 lines of logs for replai-backend..."
-              /usr/bin/pm2 logs replai-backend --lines 20 --nostream || true
-              exit 1
-            fi
+            echo "=== Haciendo restart ==="
+            /usr/bin/pm2 restart replai-backend
 
+            echo "=== Verificando estado ==="
+            /usr/bin/pm2 list
+
+            echo "=== Guardando estado PM2 ==="
             /usr/bin/pm2 save
+
+            echo "=== Deploy completado ==="
