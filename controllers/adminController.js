@@ -10,6 +10,10 @@ function mapErrorToResponse(err, res) {
     return res.status(409).json({ ok: false, error: 'owner_email ya registrado' });
   }
 
+  if (err && err.code === 'INVALID_ADMIN_PASSWORD') {
+    return res.status(401).json({ ok: false, error: 'Contraseña de administrador incorrecta' });
+  }
+
   if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
     return res.status(err.status).json({ ok: false, error: err.message || 'bad_request' });
   }
@@ -127,6 +131,23 @@ async function updateBusinessUserStatus(req, res) {
   }
 }
 
+async function deleteBusiness(req, res) {
+  try {
+    const { businessId } = req.params;
+    const { adminPassword } = req.body || {};
+
+    const deleted = await adminService.deleteBusinessById({
+      businessId,
+      adminUserId: req.user.userId,
+      adminPassword
+    });
+
+    return res.status(200).json({ ok: true, deleted });
+  } catch (err) {
+    return mapErrorToResponse(err, res);
+  }
+}
+
 module.exports = {
   listBusinesses,
   createBusiness,
@@ -135,5 +156,6 @@ module.exports = {
   updateBusiness,
   getStats,
   createBusinessUser,
-  updateBusinessUserStatus
+  updateBusinessUserStatus,
+  deleteBusiness
 };

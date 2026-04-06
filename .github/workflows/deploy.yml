@@ -1,0 +1,40 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy on EC2 via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.EC2_SSH_PORT }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            cd "${{ secrets.EC2_PROJECT_PATH }}"
+
+            PREV_HEAD=$(git rev-parse HEAD)
+
+            git pull origin main
+
+            NEW_HEAD=$(git rev-parse HEAD)
+
+            if git diff --name-only "$PREV_HEAD" "$NEW_HEAD" | grep -Eq '(^|/)package\.json$'; then
+              echo "package.json changed -> running npm install --production"
+              npm install --production
+            else
+              echo "package.json unchanged -> skipping npm install"
+            fi
+
+            pm2 restart "${{ secrets.PM2_PROCESS_NAME }}"
+            pm2 save
