@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const botSettingsController = require('../controllers/botSettingsController');
-const { authenticateToken, requireBusinessRole } = require('../middlewares/auth');
+const { authenticateToken } = require('../middlewares/auth');
 
-router.get('/settings/bot', authenticateToken, requireBusinessRole(['OWNER']), botSettingsController.getBotSettings);
-router.put('/settings/bot', authenticateToken, requireBusinessRole(['OWNER']), botSettingsController.updateBotSettings);
+router.get('/settings/bot', authenticateToken, botSettingsController.getBotSettings);
+router.put('/settings/bot', authenticateToken, botSettingsController.updateBotSettings);
 
 module.exports = router;
