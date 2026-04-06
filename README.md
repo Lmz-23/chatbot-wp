@@ -22,6 +22,7 @@ Project layout (important files)
 
 Environment variables (example)
 - PORT=3000
+- FRONTEND_URL=https://tu-frontend.com (obligatoria en produccion; permite lista separada por comas)
 - DATABASE_URL=postgres://...
 - VERIFY_TOKEN=global_verify_token (use per-tenant verify in prod)
 - WHATSAPP_TOKEN=dev_whatsapp_token (dev only; use secret manager in prod)

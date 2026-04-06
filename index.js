@@ -29,7 +29,12 @@ const globalRateLimiter = rateLimit({
 
 function buildAllowedOrigins() {
   if (isProduction) {
-    return new Set([process.env.FRONTEND_URL.trim()]);
+    return new Set(
+      process.env.FRONTEND_URL
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    );
   }
 
   return new Set([
