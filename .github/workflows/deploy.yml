@@ -36,5 +36,12 @@ jobs:
               echo "package.json unchanged -> skipping npm install"
             fi
 
-            pm2 restart "${{ secrets.PM2_PROCESS_NAME }}"
-            pm2 save
+            /usr/bin/pm2 list
+
+            if ! /usr/bin/pm2 restart replai-backend; then
+              echo "PM2 restart failed. Showing last 20 lines of logs for replai-backend..."
+              /usr/bin/pm2 logs replai-backend --lines 20 --nostream || true
+              exit 1
+            fi
+
+            /usr/bin/pm2 save
