@@ -73,6 +73,7 @@ app.use('/auth', require('./routes/auth'));
 app.use('/api', require('./routes/api-settings'));
 app.use('/api', require('./routes/api-business-profile'));
 app.use('/api', require('./routes/api-users'));
+app.use('/api/admin', require('./routes/admin'));
 app.use('/admin/business', require('./routes/business-admin'));
 app.use('/business', require('./routes/business-settings'));
 app.use('/business', require('./routes/business-leads'));

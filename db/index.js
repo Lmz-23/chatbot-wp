@@ -41,6 +41,8 @@ async function init() {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await query(models.createBusinessesTable);
+      await query(models.migrateBusinessesIsActiveColumn);
+      await query(models.migrateBusinessesContactColumns);
       await query(models.createBotFlowsTable);
       await query(models.createBotFlowsBusinessIndex);
       await query(models.seedDefaultClinicBotFlows);

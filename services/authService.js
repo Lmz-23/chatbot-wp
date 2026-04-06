@@ -49,6 +49,26 @@ async function login(email, password) {
     throw err;
   }
 
+  const isPlatformAdmin = user.platform_role === 'PLATFORM_ADMIN';
+  const hasTenantMembership = user.membership_role === 'OWNER' || user.membership_role === 'AGENT';
+
+  if (!isPlatformAdmin && hasTenantMembership && user.business_id) {
+    const businessResult = await db.query(
+      `SELECT is_active
+       FROM businesses
+       WHERE id = $1
+       LIMIT 1`,
+      [user.business_id]
+    );
+
+    const business = businessResult.rows[0] || null;
+    if (business && business.is_active === false) {
+      const err = new Error('BUSINESS_SUSPENDED');
+      err.code = 'BUSINESS_SUSPENDED';
+      throw err;
+    }
+  }
+
   const payload = buildTokenPayload({
     userId: user.id,
     platformRole: user.platform_role,

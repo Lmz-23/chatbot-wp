@@ -2,8 +2,42 @@ const createBusinessesTable = `
 CREATE TABLE IF NOT EXISTS businesses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  phone_number VARCHAR(20),
+  email VARCHAR(255),
   created_at TIMESTAMPTZ DEFAULT now()
 );`;
+
+const migrateBusinessesIsActiveColumn = `
+DO $$
+BEGIN
+  ALTER TABLE businesses
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+  UPDATE businesses
+  SET is_active = true
+  WHERE is_active IS NULL;
+
+  ALTER TABLE businesses
+    ALTER COLUMN is_active SET DEFAULT true;
+
+  ALTER TABLE businesses
+    ALTER COLUMN is_active SET NOT NULL;
+EXCEPTION WHEN undefined_table THEN
+  NULL;
+END $$;`;
+
+const migrateBusinessesContactColumns = `
+DO $$
+BEGIN
+  ALTER TABLE businesses
+    ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);
+
+  ALTER TABLE businesses
+    ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+EXCEPTION WHEN undefined_table THEN
+  NULL;
+END $$;`;
 
 const defaultClinicBotFlowNodes = [
   {
@@ -426,6 +460,8 @@ CREATE TABLE IF NOT EXISTS logs (
 
 module.exports = {
   createBusinessesTable,
+  migrateBusinessesIsActiveColumn,
+  migrateBusinessesContactColumns,
   defaultClinicBotFlowNodes,
   createBotFlowsTable,
   createBotFlowsBusinessIndex,

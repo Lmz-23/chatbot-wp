@@ -25,6 +25,10 @@ async function login(req, res) {
       return res.status(403).json({ error: 'Tu cuenta ha sido desactivada. Contacta al administrador.' });
     }
 
+    if (err.code === 'BUSINESS_SUSPENDED') {
+      return res.status(403).json({ error: 'Tu acceso ha sido suspendido. Contacta al administrador de la plataforma.' });
+    }
+
     if (err.code === 'INVALID_CREDENTIALS') {
       return res.status(401).json({ error: 'invalid email or password' });
     }
