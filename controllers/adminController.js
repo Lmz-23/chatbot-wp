@@ -32,11 +32,10 @@ async function listBusinesses(req, res) {
 
 async function createBusiness(req, res) {
   try {
-    const { name, email, phone_number, owner_email, owner_password } = req.body || {};
+    const { name, phone_number, owner_email, owner_password } = req.body || {};
 
     const created = await adminService.createBusinessWithOwner({
       name,
-      email,
       phone_number,
       owner_email,
       owner_password
@@ -77,11 +76,10 @@ async function getBusinessById(req, res) {
 async function updateBusiness(req, res) {
   try {
     const { businessId } = req.params;
-    const { name, email, phone_number } = req.body || {};
+    const { name, phone_number } = req.body || {};
 
     const business = await adminService.updateBusinessById(businessId, {
       name,
-      email,
       phone_number
     });
 

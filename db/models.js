@@ -161,6 +161,21 @@ const defaultClinicBotFlowNodes = [
   }
 ];
 
+const defaultAdminBotFlowNodes = [
+  {
+    id: 'start',
+    message: 'Hola, bienvenido a [business_name]. ¿En qué podemos ayudarte hoy?',
+    transitions: [],
+    default: 'fallback'
+  },
+  {
+    id: 'fallback',
+    message: 'Gracias por tu mensaje. Un asesor te contactará en breve.',
+    transitions: [],
+    default: 'escalate_agent'
+  }
+];
+
 const createBotFlowsTable = `
 CREATE TABLE IF NOT EXISTS bot_flows (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -199,6 +214,34 @@ WHERE NOT EXISTS (
   WHERE bf.business_id = b.id
 )
 ON CONFLICT (business_id) DO NOTHING;`;
+
+const migrateClinicFlowsToDefaultAdminTemplate = `
+DO $$
+BEGIN
+  UPDATE bot_flows bf
+  SET
+    nodes = '${JSON.stringify(defaultAdminBotFlowNodes)}'::jsonb,
+    updated_at = now()
+  FROM businesses b
+  WHERE b.id = bf.business_id
+    AND LOWER(COALESCE(b.name, '')) <> LOWER('Mi primer bot')
+    AND NOT EXISTS (
+      SELECT 1
+      FROM whatsapp_accounts w
+      INNER JOIN conversations c ON c.whatsapp_account_id = w.id
+      WHERE w.business_id = b.id
+    )
+    AND (
+      COALESCE(bf.nodes->0->>'message', '') = 'Hola, soy el asistente de Replai para la clínica. ¿Buscas una cita, precios, horarios o hablar con un agente?'
+      OR EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(bf.nodes) node
+        WHERE node->>'id' IN ('appointment_general', 'appointment_dental', 'ask_service_price')
+      )
+    );
+EXCEPTION WHEN undefined_table THEN
+  NULL;
+END $$;`;
 
 const createWhatsappAccountsTable = `
 CREATE TABLE IF NOT EXISTS whatsapp_accounts (
@@ -463,10 +506,12 @@ module.exports = {
   migrateBusinessesIsActiveColumn,
   migrateBusinessesContactColumns,
   defaultClinicBotFlowNodes,
+  defaultAdminBotFlowNodes,
   createBotFlowsTable,
   createBotFlowsBusinessIndex,
   migrateConversationsCurrentNodeColumn,
   seedDefaultClinicBotFlows,
+  migrateClinicFlowsToDefaultAdminTemplate,
   createWhatsappAccountsTable,
   createConversationsTable,
   migrateConversationStatusConstraint,

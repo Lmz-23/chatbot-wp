@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const db = require('../db');
 const userAdminService = require('./userAdminService');
-const { defaultClinicBotFlowNodes } = require('../db/models');
+const { defaultAdminBotFlowNodes } = require('../db/models');
 
 function createError(message, code, status = 400) {
   const err = new Error(message);
@@ -23,7 +23,6 @@ async function listBusinesses() {
     SELECT
       b.id,
       b.name,
-      b.email,
       b.phone_number,
       b.is_active,
       b.created_at,
@@ -43,25 +42,15 @@ async function listBusinesses() {
 
 async function createBusinessWithOwner({
   name,
-  email,
   phone_number: phoneNumber,
   owner_email: ownerEmail,
   owner_password: ownerPassword
 }) {
   const normalizedName = (name || '').toString().trim();
-  const normalizedBusinessEmail = normalizeEmail(email);
   const normalizedOwnerEmail = normalizeEmail(ownerEmail);
 
   if (!normalizedName) {
     throw createError('name is required', 'NAME_REQUIRED', 400);
-  }
-
-  if (!normalizedBusinessEmail) {
-    throw createError('email is required', 'EMAIL_REQUIRED', 400);
-  }
-
-  if (!isValidEmail(normalizedBusinessEmail)) {
-    throw createError('email inválido', 'INVALID_EMAIL', 400);
   }
 
   if (!normalizedOwnerEmail) {
@@ -93,10 +82,10 @@ async function createBusinessWithOwner({
     }
 
     const businessResult = await client.query(
-      `INSERT INTO businesses (name, email, phone_number, is_active)
-       VALUES ($1, $2, $3, true)
-       RETURNING id, name, email, phone_number, is_active, created_at`,
-      [normalizedName, normalizedBusinessEmail, phoneNumber || null]
+      `INSERT INTO businesses (name, phone_number, is_active)
+       VALUES ($1, $2, true)
+       RETURNING id, name, phone_number, is_active, created_at`,
+      [normalizedName, phoneNumber || null]
     );
 
     const business = businessResult.rows[0];
@@ -143,7 +132,7 @@ async function createBusinessWithOwner({
        DO UPDATE SET
          nodes = EXCLUDED.nodes,
          updated_at = now()`,
-      [business.id, JSON.stringify(defaultClinicBotFlowNodes)]
+      [business.id, JSON.stringify(defaultAdminBotFlowNodes)]
     );
 
     await client.query('COMMIT');
@@ -170,7 +159,7 @@ async function updateBusinessStatus(businessId, isActive) {
     `UPDATE businesses
      SET is_active = $2
      WHERE id = $1
-     RETURNING id, name, email, phone_number, is_active, created_at`,
+     RETURNING id, name, phone_number, is_active, created_at`,
     [businessId, isActive]
   );
 
@@ -187,7 +176,7 @@ async function getBusinessById(businessId) {
   }
 
   const businessResult = await db.query(
-    `SELECT id, name, email, phone_number, is_active, created_at
+    `SELECT id, name, phone_number, is_active, created_at
      FROM businesses
      WHERE id = $1
      LIMIT 1`,
@@ -261,36 +250,26 @@ async function getBusinessById(businessId) {
   };
 }
 
-async function updateBusinessById(businessId, { name, email, phone_number: phoneNumber }) {
+async function updateBusinessById(businessId, { name, phone_number: phoneNumber }) {
   if (!businessId) {
     throw createError('businessId is required', 'BUSINESS_ID_REQUIRED', 400);
   }
 
   const normalizedName = typeof name === 'string' ? name.trim() : null;
-  const normalizedEmail = typeof email === 'string' ? normalizeEmail(email) : null;
   const normalizedPhone = typeof phoneNumber === 'string' ? phoneNumber.trim() : null;
 
   if (normalizedName === '') {
     throw createError('name cannot be empty', 'INVALID_NAME', 400);
   }
 
-  if (normalizedEmail === '') {
-    throw createError('email cannot be empty', 'INVALID_EMAIL', 400);
-  }
-
-  if (normalizedEmail && !isValidEmail(normalizedEmail)) {
-    throw createError('email inválido', 'INVALID_EMAIL', 400);
-  }
-
   const result = await db.query(
     `UPDATE businesses
      SET
        name = COALESCE($2, name),
-       email = COALESCE($3, email),
-       phone_number = COALESCE($4, phone_number)
+       phone_number = COALESCE($3, phone_number)
      WHERE id = $1
-     RETURNING id, name, email, phone_number, is_active, created_at`,
-    [businessId, normalizedName, normalizedEmail, normalizedPhone]
+     RETURNING id, name, phone_number, is_active, created_at`,
+    [businessId, normalizedName, normalizedPhone]
   );
 
   if (result.rows.length === 0) {

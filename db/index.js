@@ -48,6 +48,7 @@ async function init() {
       await query(models.seedDefaultClinicBotFlows);
       await query(models.createWhatsappAccountsTable);
       await query(models.createConversationsTable);
+      await query(models.migrateClinicFlowsToDefaultAdminTemplate);
       await query(models.migrateConversationsCurrentNodeColumn);
       await query(models.migrateConversationStatusConstraint);
       await query(models.createConversationsIndex);
