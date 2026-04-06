@@ -17,9 +17,16 @@ function isUuid(value) {
 // Validates and updates per-business chatbot messages and fallback copy.
 async function updateBusinessSettings(req, res) {
   try {
-    const businessId = req.body.businessId || req.body.business_id;
+    const tokenBusinessId = req.user && req.user.businessId ? req.user.businessId : null;
+    const bodyBusinessId = req.body.businessId || req.body.business_id;
+    const businessId = tokenBusinessId;
+
     if (!businessId) {
-      return res.status(400).json({ error: 'businessId is required' });
+      return res.status(403).json({ error: 'forbidden' });
+    }
+
+    if (bodyBusinessId && bodyBusinessId !== tokenBusinessId) {
+      return res.status(403).json({ error: 'forbidden' });
     }
 
     if (!isUuid(businessId)) {

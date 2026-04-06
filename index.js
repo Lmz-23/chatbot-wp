@@ -1,27 +1,41 @@
 require('dotenv').config();
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const logger = require('./utils/logger');
 const db = require('./db');
 
-const app = express();
-
-function isPrivateNetworkHost(hostname = '') {
-  return (
-    /^localhost$/i.test(hostname)
-    || /^127\.0\.0\.1$/.test(hostname)
-    || /^10\./.test(hostname)
-    || /^192\.168\./.test(hostname)
-    || /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
-  );
+const isProduction = process.env.NODE_ENV === 'production';
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'APP_SECRET', 'WHATSAPP_TOKEN'];
+if (isProduction) {
+  requiredEnvVars.push('FRONTEND_URL');
+}
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`FATAL: Variable de entorno ${envVar} no esta definida`);
+    process.exit(1);
+  }
 }
 
-function buildAllowedOrigins() {
-  const configured = (process.env.FRONTEND_URL || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+const app = express();
 
-  return new Set(configured);
+const globalRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes, intenta mas tarde' },
+  skip: (req) => req.method === 'GET' && req.path === '/webhook'
+});
+
+function buildAllowedOrigins() {
+  if (isProduction) {
+    return new Set([process.env.FRONTEND_URL.trim()]);
+  }
+
+  return new Set([
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ]);
 }
 
 const allowedOrigins = buildAllowedOrigins();
@@ -29,25 +43,16 @@ const allowedOrigins = buildAllowedOrigins();
 // Enable CORS for frontend development
 app.use((req, res, next) => {
   const requestOrigin = req.headers.origin || '';
-  let allowOrigin = '*';
+  const isAllowed = requestOrigin && allowedOrigins.has(requestOrigin);
 
-  if (requestOrigin) {
-    try {
-      const parsedOrigin = new URL(requestOrigin);
-      const isDevPrivateOrigin = process.env.NODE_ENV !== 'production' && isPrivateNetworkHost(parsedOrigin.hostname);
-
-      if (allowedOrigins.size === 0) {
-        allowOrigin = '*';
-      } else if (allowedOrigins.has(requestOrigin) || isDevPrivateOrigin) {
-        allowOrigin = requestOrigin;
-      }
-    } catch {
-      // Keep wildcard fallback for invalid Origin header values.
-    }
+  if (requestOrigin && !isAllowed) {
+    return res.status(403).json({ error: 'Origin no permitido' });
   }
 
-  res.header('Access-Control-Allow-Origin', allowOrigin);
-  res.header('Vary', 'Origin');
+  if (isAllowed) {
+    res.header('Access-Control-Allow-Origin', requestOrigin);
+    res.header('Vary', 'Origin');
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') {
@@ -65,6 +70,8 @@ app.use(
     }
   })
 );
+
+app.use(globalRateLimiter);
 
 // Mount routes
 // - /webhook is the main entrypoint for WhatsApp events
