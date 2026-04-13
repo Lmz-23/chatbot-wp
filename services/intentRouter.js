@@ -4,6 +4,11 @@ const RULES = [
   { intent: 'lead_capture', keywords: ['quiero', 'interesado', 'interesada', 'comprar', 'contratar', 'me interesa', 'información', 'informacion', 'asesor', 'cotizacion', 'cotización'] },
 ];
 
+/**
+ * Detecta el intent del mensaje usando reglas simples por palabras clave.
+ * @param {string} message - Texto entrante del usuario.
+ * @returns {string} Intent detectado o fallback si no hay coincidencias.
+ */
 function detectIntent(message) {
   const text = (message || '').toString().trim().toLowerCase();
 

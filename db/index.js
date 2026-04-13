@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
+const { getInitStatements } = require('./initStatements');
 
 function shouldUseSsl() {
   const url = process.env.DATABASE_URL || '';
@@ -37,39 +38,13 @@ async function query(text, params) {
 // intended for development / early MVP.
 async function init() {
   const models = require('./models');
+  const initStatements = getInitStatements(models);
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      await query(models.createBusinessesTable);
-      await query(models.migrateBusinessesIsActiveColumn);
-      await query(models.migrateBusinessesContactColumns);
-      await query(models.createBotFlowsTable);
-      await query(models.createBotFlowsBusinessIndex);
-      await query(models.seedDefaultClinicBotFlows);
-      await query(models.createWhatsappAccountsTable);
-      await query(models.createConversationsTable);
-      await query(models.migrateClinicFlowsToDefaultAdminTemplate);
-      await query(models.migrateConversationsCurrentNodeColumn);
-      await query(models.migrateConversationStatusConstraint);
-      await query(models.createConversationsIndex);
-      await query(models.createConversationsActiveIndex);
-      await query(models.createConversationsAccountCreatedAtIndex);
-      await query(models.createMessagesTable);
-      await query(models.createMessagesConversationIndex);
-      await query(models.createMessagesConversationCreatedAtIndex);
-      await query(models.createLeadsTable);
-      await query(models.migrateLeadsTableSchema);
-      await query(models.createLeadsBusinessPhoneIndex);
-      await query(models.createLeadsBusinessStatusIndex);
-      await query(models.createLeadsBusinessInteractionIndex);
-      await query(models.createLeadsBusinessCreatedAtIndex);
-      await query(models.createBusinessSettingsTable);
-      await query(models.createUsersTable);
-      await query(models.migrateUsersIsActiveColumn);
-      await query(models.createUsersEmailIndex);
-      await query(models.createMembershipsTable);
-      await query(models.createMembershipsUserIndex);
-      await query(models.createLogsTable);
+      for (const statement of initStatements) {
+        await query(statement);
+      }
       logger.info('db_initialized', { attempt });
       return;
     } catch (err) {

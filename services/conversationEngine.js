@@ -4,28 +4,44 @@ const settingsService = require('./settingsService');
 const botFlowService = require('./botFlowService');
 const conversationService = require('./conversationService');
 const businessService = require('./businessService');
+const { DEFAULT_BOT_MESSAGES } = require('./defaultMessages');
 const logger = require('../utils/logger');
 
-const DEFAULT_MESSAGES = {
-  welcome_message: 'Hola! Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?',
-  pricing_message: 'Con gusto. Nuestros precios dependen del servicio y volumen. Si quieres, te comparto una cotización rápida.',
-  lead_capture_message: 'Perfecto, uno de nuestros asesores te contactará pronto. ¡Gracias por tu interés!',
-  fallback_message: 'Gracias por tu mensaje. Ya reviso el contexto de la conversación y te ayudo enseguida.'
-};
-
+/**
+ * Normaliza texto para comparaciones semanticas del flujo.
+ * @param {unknown} value - Valor de entrada potencialmente vacio o no string.
+ * @returns {string} Texto en minusculas y sin espacios extremos.
+ */
 function normalizeText(value) {
   return (value || '').toString().trim().toLowerCase();
 }
 
+/**
+ * Verifica que el valor sea un arreglo con al menos un elemento.
+ * @param {unknown} value - Valor a validar.
+ * @returns {boolean} true cuando es arreglo no vacio.
+ */
 function isNonEmptyArray(value) {
   return Array.isArray(value) && value.length > 0;
 }
 
+/**
+ * Busca un nodo por id dentro de un flujo.
+ * @param {Array<object>} nodes - Nodos del flujo.
+ * @param {string} nodeId - Id del nodo a ubicar.
+ * @returns {object|null} Nodo encontrado o null.
+ */
 function findNodeById(nodes, nodeId) {
   if (!isNonEmptyArray(nodes) || !nodeId) return null;
   return nodes.find((node) => node && node.id === nodeId) || null;
 }
 
+/**
+ * Resuelve la siguiente transicion de un nodo segun palabras clave.
+ * @param {object} node - Nodo actual con transitions/default.
+ * @param {string} messageText - Mensaje entrante del usuario.
+ * @returns {string|null} Id del siguiente nodo o null si no hay transicion.
+ */
 function matchTransition(node, messageText) {
   const transitions = Array.isArray(node?.transitions) ? node.transitions : [];
   const normalizedMessage = normalizeText(messageText);
@@ -41,6 +57,12 @@ function matchTransition(node, messageText) {
   return node?.default || null;
 }
 
+/**
+ * Reemplaza placeholders entre corchetes por el nombre del negocio.
+ * @param {string} text - Texto base potencialmente con placeholders.
+ * @param {string} businessName - Nombre del negocio.
+ * @returns {string} Texto con placeholders reemplazados.
+ */
 function replaceBusinessPlaceholders(text, businessName) {
   if (typeof text !== 'string') return text;
 
@@ -51,6 +73,14 @@ function replaceBusinessPlaceholders(text, businessName) {
   return text.replace(/\[[^\]]+\]/g, normalizedBusinessName);
 }
 
+/**
+ * Genera respuesta de respaldo basada en el router legacy de intents.
+ * @param {string} message - Mensaje entrante.
+ * @param {Array<object>} context - Historial de contexto conversacional.
+ * @param {{ businessId?: string, phone?: string }} meta - Metadatos de tenant y telefono.
+ * @returns {Promise<object>} Resultado de respuesta con flags de envio/flujo.
+ * @throws {Error} Puede propagar errores no controlados de dependencias.
+ */
 async function buildLegacyResponse(message, context, meta = {}) {
   const intent = intentRouter.detectIntent(message);
   const hasHistory = Array.isArray(context) && context.length > 0;
@@ -68,10 +98,10 @@ async function buildLegacyResponse(message, context, meta = {}) {
   }
 
   const messages = {
-    welcome_message: settings?.welcome_message || DEFAULT_MESSAGES.welcome_message,
-    pricing_message: settings?.pricing_message || DEFAULT_MESSAGES.pricing_message,
-    lead_capture_message: settings?.lead_capture_message || DEFAULT_MESSAGES.lead_capture_message,
-    fallback_message: settings?.fallback_message || DEFAULT_MESSAGES.fallback_message
+    welcome_message: settings?.welcome_message || DEFAULT_BOT_MESSAGES.welcome_message,
+    pricing_message: settings?.pricing_message || DEFAULT_BOT_MESSAGES.pricing_message,
+    lead_capture_message: settings?.lead_capture_message || DEFAULT_BOT_MESSAGES.lead_capture_message,
+    fallback_message: settings?.fallback_message || DEFAULT_BOT_MESSAGES.fallback_message
   };
 
   switch (intent) {
@@ -139,6 +169,14 @@ async function buildLegacyResponse(message, context, meta = {}) {
 // Generates the next bot action using the business flow when available.
 // When there is no flow configured, the legacy intentRouter remains the fallback.
 // meta: { businessId, conversationId, phone }.
+/**
+ * Genera la siguiente accion del bot usando flujo configurable por negocio.
+ * @param {string} message - Mensaje entrante del usuario.
+ * @param {Array<object>} context - Historial de mensajes de la conversacion.
+ * @param {{ businessId?: string, conversationId?: string, phone?: string, currentNode?: string }} meta - Contexto de negocio y conversacion.
+ * @returns {Promise<object>} Objeto con replyText, nextNodeId y banderas de control.
+ * @throws {Error} Puede lanzar errores de acceso a servicios externos o DB.
+ */
 async function generateResponse(message, context, meta = {}) {
   const messageText = normalizeText(message);
   const conversationId = meta.conversationId || null;

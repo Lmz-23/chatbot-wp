@@ -4,6 +4,12 @@ const { normalizePhone } = require('../utils/phone');
 const ALLOWED_LEAD_STATUSES = new Set(['NEW', 'CONTACTED', 'QUALIFIED', 'CLOSED']);
 
 // Looks up a single lead by tenant + normalized phone.
+/**
+ * Busca un lead por negocio y telefono normalizado.
+ * @param {string} businessId - Id del negocio.
+ * @param {string} phone - Telefono del cliente.
+ * @returns {Promise<object|null>} Lead encontrado o null.
+ */
 async function findLeadByBusinessAndPhone(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -28,6 +34,15 @@ async function findLeadByBusinessAndPhone(businessId, phone) {
 }
 
 // Creates (or refreshes) a lead while preserving current status on conflict.
+/**
+ * Crea o refresca un lead sin degradar el estado existente en conflicto.
+ * @param {string} businessId - Id del negocio.
+ * @param {string} phone - Telefono del cliente.
+ * @param {string} [status='NEW'] - Estado objetivo.
+ * @param {string|null} [name=null] - Nombre opcional del lead.
+ * @returns {Promise<object|null>} Lead creado/actualizado.
+ * @throws {Error} Si faltan claves o el estado es invalido.
+ */
 async function createLead(businessId, phone, status = 'NEW', name = null) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) {
@@ -63,6 +78,12 @@ async function createLead(businessId, phone, status = 'NEW', name = null) {
 }
 
 // Ensures an inbound customer message always has an associated lead.
+/**
+ * Asegura que un mensaje entrante tenga lead asociado.
+ * @param {string} businessId - Id del negocio.
+ * @param {string} phone - Telefono del cliente.
+ * @returns {Promise<object|null>} Lead creado/actualizado o null.
+ */
 async function upsertLeadFromIncomingMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -89,6 +110,12 @@ async function upsertLeadFromIncomingMessage(businessId, phone) {
 }
 
 // Reopens CLOSED leads to CONTACTED when a customer returns.
+/**
+ * Reabre leads cerrados cuando el cliente vuelve a escribir.
+ * @param {string} businessId - Id del negocio.
+ * @param {string} phone - Telefono del cliente.
+ * @returns {Promise<object|null>} Lead reabierto o null si no aplica.
+ */
 async function reopenLeadOnIncomingMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -119,6 +146,12 @@ async function reopenLeadOnIncomingMessage(businessId, phone) {
 }
 
 // Moves NEW/CLOSED leads to CONTACTED when an agent sends a message.
+/**
+ * Promueve lead a CONTACTED por mensaje de agente.
+ * @param {string} businessId - Id del negocio.
+ * @param {string} phone - Telefono del cliente.
+ * @returns {Promise<object|null>} Lead actualizado.
+ */
 async function promoteLeadOnAgentMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
@@ -149,6 +182,11 @@ async function promoteLeadOnAgentMessage(businessId, phone) {
 }
 
 // Lists tenant leads ordered by most recent interaction.
+/**
+ * Lista leads de un negocio ordenados por ultima interaccion.
+ * @param {string} businessId - Id del negocio.
+ * @returns {Promise<object[]>} Coleccion de leads.
+ */
 async function listLeadsByBusinessId(businessId) {
   const q = `
     SELECT
@@ -168,6 +206,14 @@ async function listLeadsByBusinessId(businessId) {
 }
 
 // Partially updates lead fields with tenant scoping and status validation.
+/**
+ * Actualiza campos de un lead con alcance por negocio.
+ * @param {string} leadId - Id del lead.
+ * @param {string} businessId - Id del negocio.
+ * @param {{ name?: string|null, status?: string }} param2 - Campos parciales a actualizar.
+ * @returns {Promise<object|null>} Lead actualizado o null.
+ * @throws {Error} Si status es invalido.
+ */
 async function updateLeadByIdAndBusiness(leadId, businessId, { name, status }) {
   const updates = [];
   const params = [leadId, businessId];

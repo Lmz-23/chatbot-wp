@@ -1,5 +1,6 @@
 const adminService = require('../services/adminService');
 const logger = require('../utils/logger');
+const { withAsyncHandler } = require('./asyncHandler');
 
 function mapErrorToResponse(err, res) {
   if (err && err.code === 'BUSINESS_NOT_FOUND') {
@@ -25,128 +26,92 @@ function mapErrorToResponse(err, res) {
   return res.status(500).json({ ok: false, error: 'internal_error' });
 }
 
-async function listBusinesses(req, res) {
-  try {
-    const businesses = await adminService.listBusinesses();
-    return res.status(200).json({ ok: true, businesses });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+const listBusinesses = withAsyncHandler(async (req, res) => {
+  const businesses = await adminService.listBusinesses();
+  return res.status(200).json({ ok: true, businesses });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
-async function createBusiness(req, res) {
-  try {
-    const { name, phone_number, owner_email, owner_password } = req.body || {};
+const createBusiness = withAsyncHandler(async (req, res) => {
+  const { name, phone_number, owner_email, owner_password } = req.body || {};
 
-    const created = await adminService.createBusinessWithOwner({
-      name,
-      phone_number,
-      owner_email,
-      owner_password
-    });
+  const created = await adminService.createBusinessWithOwner({
+    name,
+    phone_number,
+    owner_email,
+    owner_password
+  });
 
-    return res.status(201).json({
-      ok: true,
-      business: created.business,
-      owner: created.owner
-    });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+  return res.status(201).json({
+    ok: true,
+    business: created.business,
+    owner: created.owner
+  });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
-async function updateBusinessStatus(req, res) {
-  try {
-    const { businessId } = req.params;
-    const { is_active } = req.body || {};
+const updateBusinessStatus = withAsyncHandler(async (req, res) => {
+  const { businessId } = req.params;
+  const { is_active } = req.body || {};
 
-    const business = await adminService.updateBusinessStatus(businessId, is_active);
-    return res.status(200).json({ ok: true, business });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+  const business = await adminService.updateBusinessStatus(businessId, is_active);
+  return res.status(200).json({ ok: true, business });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
-async function getBusinessById(req, res) {
-  try {
-    const { businessId } = req.params;
-    const business = await adminService.getBusinessById(businessId);
-    return res.status(200).json({ ok: true, data: business });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+const getBusinessById = withAsyncHandler(async (req, res) => {
+  const { businessId } = req.params;
+  const business = await adminService.getBusinessById(businessId);
+  return res.status(200).json({ ok: true, data: business });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
-async function updateBusiness(req, res) {
-  try {
-    const { businessId } = req.params;
-    const { name, phone_number } = req.body || {};
+const updateBusiness = withAsyncHandler(async (req, res) => {
+  const { businessId } = req.params;
+  const { name, phone_number } = req.body || {};
 
-    const business = await adminService.updateBusinessById(businessId, {
-      name,
-      phone_number
-    });
+  const business = await adminService.updateBusinessById(businessId, {
+    name,
+    phone_number
+  });
 
-    return res.status(200).json({ ok: true, business });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+  return res.status(200).json({ ok: true, business });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
-async function getStats(req, res) {
-  try {
-    const stats = await adminService.getPlatformStats();
-    return res.status(200).json({ ok: true, stats });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+const getStats = withAsyncHandler(async (req, res) => {
+  const stats = await adminService.getPlatformStats();
+  return res.status(200).json({ ok: true, stats });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
-async function createBusinessUser(req, res) {
-  try {
-    const { businessId } = req.params;
-    const { email, password, role } = req.body || {};
+const createBusinessUser = withAsyncHandler(async (req, res) => {
+  const { businessId } = req.params;
+  const { email, password, role } = req.body || {};
 
-    const user = await adminService.createUserForBusiness(businessId, {
-      email,
-      password,
-      role
-    });
+  const user = await adminService.createUserForBusiness(businessId, {
+    email,
+    password,
+    role
+  });
 
-    return res.status(201).json({ ok: true, user });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+  return res.status(201).json({ ok: true, user });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
-async function updateBusinessUserStatus(req, res) {
-  try {
-    const { businessId, userId } = req.params;
-    const { is_active } = req.body || {};
+const updateBusinessUserStatus = withAsyncHandler(async (req, res) => {
+  const { businessId, userId } = req.params;
+  const { is_active } = req.body || {};
 
-    const user = await adminService.updateUserStatusForBusiness(businessId, userId, is_active);
-    return res.status(200).json({ ok: true, user });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+  const user = await adminService.updateUserStatusForBusiness(businessId, userId, is_active);
+  return res.status(200).json({ ok: true, user });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
-async function deleteBusiness(req, res) {
-  try {
-    const { businessId } = req.params;
-    const { adminPassword } = req.body || {};
+const deleteBusiness = withAsyncHandler(async (req, res) => {
+  const { businessId } = req.params;
+  const { adminPassword } = req.body || {};
 
-    const deleted = await adminService.deleteBusinessById({
-      businessId,
-      adminUserId: req.user.userId,
-      adminPassword
-    });
+  const deleted = await adminService.deleteBusinessById({
+    businessId,
+    adminUserId: req.user.userId,
+    adminPassword
+  });
 
-    return res.status(200).json({ ok: true, deleted });
-  } catch (err) {
-    return mapErrorToResponse(err, res);
-  }
-}
+  return res.status(200).json({ ok: true, deleted });
+}, (err, req, res) => mapErrorToResponse(err, res));
 
 module.exports = {
   listBusinesses,

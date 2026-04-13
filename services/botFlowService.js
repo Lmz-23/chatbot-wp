@@ -1,5 +1,11 @@
 const db = require('../db');
 
+/**
+ * Normaliza y valida la estructura base de nodos de flujo.
+ * @param {unknown} nodes - Estructura candidata de nodos.
+ * @returns {Array<object>} Arreglo de nodos validado.
+ * @throws {Error} Cuando nodes no es arreglo.
+ */
 function normalizeNodes(nodes) {
   if (!Array.isArray(nodes)) {
     throw new Error('invalid_bot_flow_nodes');
@@ -8,6 +14,11 @@ function normalizeNodes(nodes) {
   return nodes;
 }
 
+/**
+ * Obtiene el flujo de bot de un negocio.
+ * @param {string} businessId - Id del negocio.
+ * @returns {Promise<object|null>} Flujo encontrado o null.
+ */
 async function getFlowByBusiness(businessId) {
   if (!businessId) return null;
 
@@ -26,6 +37,13 @@ async function getFlowByBusiness(businessId) {
   return result.rows[0] || null;
 }
 
+/**
+ * Crea o actualiza el flujo de bot por negocio.
+ * @param {string} businessId - Id del negocio.
+ * @param {Array<object>} nodes - Nodos del flujo a persistir.
+ * @returns {Promise<object|null>} Flujo persistido.
+ * @throws {Error} Cuando faltan datos o nodes es invalido.
+ */
 async function saveFlow(businessId, nodes) {
   if (!businessId) {
     throw new Error('missing_business_id');
@@ -51,6 +69,12 @@ async function saveFlow(businessId, nodes) {
   return result.rows[0] || null;
 }
 
+/**
+ * Obtiene un nodo especifico del flujo de un negocio.
+ * @param {string} businessId - Id del negocio.
+ * @param {string} nodeId - Id del nodo.
+ * @returns {Promise<object|null>} Nodo encontrado o null.
+ */
 async function getNodeById(businessId, nodeId) {
   if (!businessId || !nodeId) return null;
 
