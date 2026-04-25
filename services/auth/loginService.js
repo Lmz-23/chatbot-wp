@@ -27,7 +27,7 @@ async function assertBusinessActiveIfTenantUser(user) {
 async function login(email, password) {
   const user = await userService.findByEmail(email);
   if (!user) {
-    throw createAuthError('INVALID_CREDENTIALS');
+    throw createAuthError('EMAIL_NOT_FOUND');
   }
 
   if (user.is_active === false) {
@@ -36,7 +36,7 @@ async function login(email, password) {
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
-    throw createAuthError('INVALID_CREDENTIALS');
+    throw createAuthError('INVALID_PASSWORD');
   }
 
   await assertBusinessActiveIfTenantUser(user);

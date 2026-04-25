@@ -3,6 +3,21 @@ const userService = require('../services/userService');
 const membershipService = require('../services/membershipService');
 const logger = require('../utils/logger');
 
+function buildAuthFailureBody(error, debugCode) {
+  const debugEnabled = String(process.env.AUTH_LOGIN_DEBUG || '').toLowerCase() === 'true';
+  if (!debugEnabled) {
+    return { error };
+  }
+
+  return {
+    error,
+    debug: {
+      code: debugCode,
+      note: 'AUTH_LOGIN_DEBUG habilitado; desactivalo en produccion'
+    }
+  };
+}
+
 // Validates credentials and issues a JWT for dashboard access.
 async function login(req, res) {
   try {
@@ -29,8 +44,16 @@ async function login(req, res) {
       return res.status(403).json({ error: 'Tu acceso ha sido suspendido. Contacta al administrador de la plataforma.' });
     }
 
+    if (err.code === 'EMAIL_NOT_FOUND') {
+      return res.status(401).json(buildAuthFailureBody('correo no registrado', 'EMAIL_NOT_FOUND'));
+    }
+
+    if (err.code === 'INVALID_PASSWORD') {
+      return res.status(401).json(buildAuthFailureBody('contrasena incorrecta', 'INVALID_PASSWORD'));
+    }
+
     if (err.code === 'INVALID_CREDENTIALS') {
-      return res.status(401).json({ error: 'invalid email or password' });
+      return res.status(401).json(buildAuthFailureBody('credenciales invalidas', 'INVALID_CREDENTIALS'));
     }
 
     if (/password authentication failed/i.test(message)) {
