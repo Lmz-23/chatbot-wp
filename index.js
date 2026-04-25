@@ -28,10 +28,8 @@ const globalRateLimiter = rateLimit({
   skip: (req) => req.method === 'GET' && req.path === '/webhook'
 });
 
-const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3001';
-
 app.use(cors({
-  origin: corsOrigin,
+  origin: process.env.FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
