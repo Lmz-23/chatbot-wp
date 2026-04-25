@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const logger = require('./utils/logger');
 const db = require('./db');
@@ -27,44 +28,14 @@ const globalRateLimiter = rateLimit({
   skip: (req) => req.method === 'GET' && req.path === '/webhook'
 });
 
-function buildAllowedOrigins() {
-  if (isProduction) {
-    return new Set(
-      process.env.FRONTEND_URL
-        .split(',')
-        .map((origin) => origin.trim())
-        .filter(Boolean)
-    );
-  }
+const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3001';
 
-  return new Set([
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ]);
-}
-
-const allowedOrigins = buildAllowedOrigins();
-
-// Enable CORS for frontend development
-app.use((req, res, next) => {
-  const requestOrigin = req.headers.origin || '';
-  const isAllowed = requestOrigin && allowedOrigins.has(requestOrigin);
-
-  if (requestOrigin && !isAllowed) {
-    return res.status(403).json({ error: 'Origin no permitido' });
-  }
-
-  if (isAllowed) {
-    res.header('Access-Control-Allow-Origin', requestOrigin);
-    res.header('Vary', 'Origin');
-  }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
+app.use(cors({
+  origin: corsOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // parse JSON bodies (Webhook posts are application/json)
 app.use(
