@@ -34,16 +34,20 @@ function normalizeOrigin(origin) {
 }
 
 function buildAllowedOrigins() {
-  const raw = String(process.env.FRONTEND_URL || '');
-  return new Set(
-    raw
-      .split(',')
-      .map((origin) => normalizeOrigin(origin))
-      .filter(Boolean)
-  );
+  const fromEnv = String(process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((origin) => normalizeOrigin(origin))
+    .filter(Boolean);
+
+  const defaults = isProduction
+    ? ['https://chatbot-wp-frontend.vercel.app']
+    : ['http://localhost:3000', 'http://localhost:3001'];
+
+  return new Set([...defaults, ...fromEnv]);
 }
 
 const allowedOrigins = buildAllowedOrigins();
+logger.info('cors_allowed_origins', { origins: Array.from(allowedOrigins) });
 
 // parse JSON bodies (Webhook posts are application/json)
 app.use(
