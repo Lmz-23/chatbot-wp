@@ -27,6 +27,24 @@ const globalRateLimiter = rateLimit({
   skip: (req) => req.method === 'GET' && req.path === '/webhook'
 });
 
+function normalizeOrigin(origin) {
+  return String(origin || '')
+    .trim()
+    .replace(/\/+$/, '');
+}
+
+function buildAllowedOrigins() {
+  const raw = String(process.env.FRONTEND_URL || '');
+  return new Set(
+    raw
+      .split(',')
+      .map((origin) => normalizeOrigin(origin))
+      .filter(Boolean)
+  );
+}
+
+const allowedOrigins = buildAllowedOrigins();
+
 // parse JSON bodies (Webhook posts are application/json)
 app.use(
   express.json({
@@ -39,9 +57,10 @@ app.use(
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allowedOrigin = process.env.FRONTEND_URL;
+  const normalizedOrigin = normalizeOrigin(origin);
+  const isAllowed = normalizedOrigin && allowedOrigins.has(normalizedOrigin);
 
-  if (origin === allowedOrigin) {
+  if (isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
@@ -50,6 +69,10 @@ app.use((req, res, next) => {
   }
 
   if (req.method === 'OPTIONS') {
+    if (origin && !isAllowed) {
+      logger.warn('cors_origin_not_allowed', { origin });
+      return res.status(403).json({ error: 'Origin no permitido' });
+    }
     return res.status(200).end();
   }
 
