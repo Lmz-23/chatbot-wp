@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const logger = require('./utils/logger');
 const db = require('./db');
@@ -28,12 +27,24 @@ const globalRateLimiter = rateLimit({
   skip: (req) => req.method === 'GET' && req.path === '/webhook'
 });
 
-app.use(cors({
-  origin: process.env.FRONTEND_URL,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigin = process.env.FRONTEND_URL;
+
+  if (origin === allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    res.setHeader('Vary', 'Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  next();
+});
 
 // parse JSON bodies (Webhook posts are application/json)
 app.use(
