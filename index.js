@@ -27,6 +27,16 @@ const globalRateLimiter = rateLimit({
   skip: (req) => req.method === 'GET' && req.path === '/webhook'
 });
 
+// parse JSON bodies (Webhook posts are application/json)
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      // Preserve the exact payload bytes to validate Meta webhook signature.
+      req.rawBody = Buffer.from(buf);
+    }
+  })
+);
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigin = process.env.FRONTEND_URL;
@@ -45,16 +55,6 @@ app.use((req, res, next) => {
 
   next();
 });
-
-// parse JSON bodies (Webhook posts are application/json)
-app.use(
-  express.json({
-    verify: (req, res, buf) => {
-      // Preserve the exact payload bytes to validate Meta webhook signature.
-      req.rawBody = Buffer.from(buf);
-    }
-  })
-);
 
 app.use(globalRateLimiter);
 
