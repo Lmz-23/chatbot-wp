@@ -45,8 +45,9 @@ jobs:
             echo "=== Entrando al proyecto ==="
             cd "${{ secrets.EC2_PROJECT_PATH }}"
 
-            echo "=== Haciendo git pull ==="
-            git pull origin main
+            echo "=== Sincronizando repositorio con origin/main ==="
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "=== Instalando dependencias de produccion ==="
             npm install --production
