@@ -17,6 +17,7 @@ for (const envVar of requiredEnvVars) {
 }
 
 const app = express();
+app.set('trust proxy', 1);
 
 const globalRateLimiter = rateLimit({
   windowMs: 60 * 1000,
