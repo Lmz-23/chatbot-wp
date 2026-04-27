@@ -9,6 +9,7 @@ function getInitStatements(models) {
     models.createWhatsappAccountsTable,
     models.createConversationsTable,
     models.migrateClinicFlowsToDefaultAdminTemplate,
+    models.migratePrincipalBusinessToReplaiSalesFlow,
     models.migrateConversationsCurrentNodeColumn,
     models.migrateConversationStatusConstraint,
     models.createConversationsIndex,

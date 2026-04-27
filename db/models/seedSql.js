@@ -1,4 +1,8 @@
-const { defaultClinicBotFlowNodes, defaultAdminBotFlowNodes } = require('./flowDefaults');
+const {
+  defaultClinicBotFlowNodes,
+  defaultAdminBotFlowNodes,
+  defaultReplaiSalesBotFlowNodes
+} = require('./flowDefaults');
 
 const seedDefaultClinicBotFlows = `
 INSERT INTO bot_flows (business_id, nodes)
@@ -39,7 +43,51 @@ EXCEPTION WHEN undefined_table THEN
   NULL;
 END $$;`;
 
+const migratePrincipalBusinessToReplaiSalesFlow = `
+DO $$
+DECLARE
+  target_business_id uuid;
+BEGIN
+  -- Select only one target business: prefer exact name match, otherwise one with WhatsApp connected.
+  SELECT b.id
+  INTO target_business_id
+  FROM businesses b
+  WHERE LOWER(COALESCE(b.name, '')) = LOWER('Mi primer bot')
+     OR EXISTS (
+       SELECT 1
+       FROM whatsapp_accounts w
+       WHERE w.business_id = b.id
+     )
+  ORDER BY
+    CASE WHEN LOWER(COALESCE(b.name, '')) = LOWER('Mi primer bot') THEN 0 ELSE 1 END,
+    b.created_at ASC
+  LIMIT 1;
+
+  IF target_business_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO bot_flows (business_id, nodes, updated_at)
+  VALUES (
+    target_business_id,
+    '${JSON.stringify(defaultReplaiSalesBotFlowNodes)}'::jsonb,
+    now()
+  )
+  ON CONFLICT (business_id)
+  DO UPDATE SET
+    nodes = EXCLUDED.nodes,
+    updated_at = now();
+
+  UPDATE businesses
+  SET name = 'Replai'
+  WHERE id = target_business_id
+    AND COALESCE(name, '') <> 'Replai';
+EXCEPTION WHEN undefined_table THEN
+  NULL;
+END $$;`;
+
 module.exports = {
   seedDefaultClinicBotFlows,
-  migrateClinicFlowsToDefaultAdminTemplate
+  migrateClinicFlowsToDefaultAdminTemplate,
+  migratePrincipalBusinessToReplaiSalesFlow
 };
