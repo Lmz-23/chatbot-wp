@@ -1,5 +1,4 @@
 const {
-  defaultClinicBotFlowNodes,
   defaultAdminBotFlowNodes,
   defaultReplaiSalesBotFlowNodes
 } = require('./flowDefaults');

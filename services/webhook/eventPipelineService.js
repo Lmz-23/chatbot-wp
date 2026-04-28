@@ -146,8 +146,10 @@ function createEventPipelineService(overrides = {}) {
       leadStatus: reopenResult?.status
     });
 
-    if (conversation.status !== 'bot') {
-      logger.info('bot_reply_skipped_non_bot_status', {
+    // Allow bot flow for 'bot' status or 'active' status (escalation request without agent assignment)
+    // Only skip if status is 'closed' (conversation terminated)
+    if (conversation.status === 'closed') {
+      logger.info('bot_reply_skipped_closed_conversation', {
         businessId: business.id,
         conversationId: conversation.id,
         status: conversation.status,
