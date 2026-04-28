@@ -118,10 +118,36 @@ async function markConversationActive(conversationId) {
   await db.query(q, [conversationId]);
 }
 
+async function closeLatestConversationByBusinessAndPhone(businessId, phone) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!businessId || !normalizedPhone) return null;
+
+  const q = `
+    WITH target AS (
+      SELECT
+        c.id
+      FROM conversations c
+      INNER JOIN whatsapp_accounts wa ON wa.id = c.whatsapp_account_id
+      WHERE wa.business_id = $1
+        AND regexp_replace(c.user_phone, '\\D', '', 'g') = $2
+      ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
+      LIMIT 1
+    )
+    UPDATE conversations c
+    SET status = 'closed'
+    FROM target t
+    WHERE c.id = t.id
+    RETURNING c.id, c.user_phone, c.status, c.current_node, c.last_message_at, c.created_at`;
+
+  const result = await db.query(q, [businessId, normalizedPhone]);
+  return result.rows[0] || null;
+}
+
 module.exports = {
   resolveConversation,
   updateConversationCurrentNodeByBusiness,
   updateConversationStatusByBusiness,
   saveMessage,
-  markConversationActive
+  markConversationActive,
+  closeLatestConversationByBusinessAndPhone
 };

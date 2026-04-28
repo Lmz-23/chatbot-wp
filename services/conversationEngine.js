@@ -7,6 +7,21 @@ const businessService = require('./businessService');
 const { DEFAULT_BOT_MESSAGES } = require('./defaultMessages');
 const logger = require('../utils/logger');
 
+const defaultBotFlowNodes = [
+  {
+    id: 'start',
+    message: 'Hola, bienvenido a [business_name]. ¿En qué podemos ayudarte?',
+    transitions: [],
+    default: 'fallback'
+  },
+  {
+    id: 'fallback',
+    message: 'Gracias por tu mensaje. Un asesor te contactará pronto.',
+    transitions: [],
+    default: 'escalate_agent'
+  }
+];
+
 /**
  * Normaliza texto para comparaciones semanticas del flujo.
  * @param {unknown} value - Valor de entrada potencialmente vacio o no string.
@@ -224,14 +239,18 @@ async function generateResponse(message, context, meta = {}) {
     });
   }
 
-  if (!flow || !isNonEmptyArray(flow.nodes)) {
-    return buildLegacyResponse(message, context, meta);
-  }
+  const flowNodes = isNonEmptyArray(flow?.nodes) ? flow.nodes : defaultBotFlowNodes;
 
-  const currentNode = findNodeById(flow.nodes, currentNodeId)
-    || findNodeById(flow.nodes, 'start')
-    || flow.nodes[0]
+  const currentNode = findNodeById(flowNodes, currentNodeId)
+    || findNodeById(flowNodes, 'start')
+    || flowNodes[0]
     || null;
+
+  logger.info('bot_engine_triggered', {
+    conversationId,
+    currentNode: currentNode ? currentNode.id : currentNodeId,
+    businessId
+  });
 
   if (!currentNode) {
     return buildLegacyResponse(message, context, meta);
@@ -254,7 +273,7 @@ async function generateResponse(message, context, meta = {}) {
     };
   }
 
-  const nextNode = findNodeById(flow.nodes, nextNodeId);
+  const nextNode = findNodeById(flowNodes, nextNodeId);
   if (!nextNode || typeof nextNode.message !== 'string' || !nextNode.message.trim()) {
     return buildLegacyResponse(message, context, meta);
   }

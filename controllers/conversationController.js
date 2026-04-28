@@ -136,6 +136,10 @@ const updateConversationStatus = withAsyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'conversation not found' });
   }
 
+  if (status === 'closed' && updated.user_phone) {
+    await leadService.closeLeadByBusinessAndPhone(businessId, updated.user_phone);
+  }
+
   return res.status(200).json({ ok: true, conversation: updated });
 }, createInternalErrorHandler(logger, 'update_conversation_status_failed'));
 

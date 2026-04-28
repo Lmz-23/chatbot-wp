@@ -1,5 +1,6 @@
 const leadService = require('../services/leadService');
 const settingsService = require('../services/settingsService');
+const conversationService = require('../services/conversationService');
 const logger = require('../utils/logger');
 
 function isUuid(value) {
@@ -85,6 +86,10 @@ async function updateLead(req, res) {
     const lead = await leadService.updateLeadByIdAndBusiness(leadId, businessId, { name, status });
     if (!lead) {
       return res.status(404).json({ error: 'lead not found for business' });
+    }
+
+    if (status === 'CLOSED' && lead.phone) {
+      await conversationService.closeLatestConversationByBusinessAndPhone(businessId, lead.phone);
     }
 
     return res.status(200).json({ ok: true, lead });

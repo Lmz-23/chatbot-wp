@@ -3,9 +3,24 @@ const {
   defaultReplaiSalesBotFlowNodes
 } = require('./flowDefaults');
 
+const defaultBotFlowNodes = [
+  {
+    id: 'start',
+    message: 'Hola, bienvenido a [business_name]. ¿En qué podemos ayudarte?',
+    transitions: [],
+    default: 'fallback'
+  },
+  {
+    id: 'fallback',
+    message: 'Gracias por tu mensaje. Un asesor te contactará pronto.',
+    transitions: [],
+    default: 'escalate_agent'
+  }
+];
+
 const seedDefaultClinicBotFlows = `
 INSERT INTO bot_flows (business_id, nodes)
-SELECT b.id, '${JSON.stringify(defaultAdminBotFlowNodes)}'::jsonb
+SELECT b.id, '${JSON.stringify(defaultBotFlowNodes)}'::jsonb
 FROM businesses b
 WHERE NOT EXISTS (
   SELECT 1

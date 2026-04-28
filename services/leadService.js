@@ -178,6 +178,31 @@ async function promoteLeadOnAgentMessage(businessId, phone) {
   return result.rows[0] || null;
 }
 
+async function closeLeadByBusinessAndPhone(businessId, phone) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!businessId || !normalizedPhone) return null;
+
+  const q = `
+    UPDATE leads
+    SET status = 'CLOSED',
+        updated_at = now(),
+        last_interaction_at = now()
+    WHERE business_id = $1
+      AND phone = $2
+    RETURNING
+      id,
+      business_id,
+      phone,
+      name,
+      status,
+      created_at,
+      updated_at,
+      last_interaction_at`;
+
+  const result = await db.query(q, [businessId, normalizedPhone]);
+  return result.rows[0] || null;
+}
+
 // Lists tenant leads ordered by most recent interaction.
 /**
  * Lista leads de un negocio ordenados por ultima interaccion.
@@ -261,6 +286,7 @@ module.exports = {
   upsertLeadFromIncomingMessage,
   reopenLeadOnIncomingMessage,
   promoteLeadOnAgentMessage,
+  closeLeadByBusinessAndPhone,
   listLeadsByBusinessId,
   updateLeadByIdAndBusiness
 };
