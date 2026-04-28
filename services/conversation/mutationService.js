@@ -27,9 +27,13 @@ async function resolveConversation(whatsappAccountId, userPhone) {
 
     if (conversation.status === 'closed') {
       await db.query(
-        `UPDATE conversations SET status = 'bot' WHERE id = $1`,
+        `UPDATE conversations
+         SET status = 'bot',
+             current_node = COALESCE(current_node, 'start')
+         WHERE id = $1`,
         [conversation.id]
       );
+
       return {
         ...conversation,
         status: 'bot',

@@ -146,10 +146,8 @@ function createEventPipelineService(overrides = {}) {
       leadStatus: reopenResult?.status
     });
 
-    // Allow bot flow for 'bot' status or 'active' status (escalation request without agent assignment)
-    // Only skip if status is 'closed' (conversation terminated)
-    if (conversation.status === 'closed') {
-      logger.info('bot_reply_skipped_closed_conversation', {
+    if (conversation.status !== 'bot') {
+      logger.info('bot_reply_skipped_non_bot_status', {
         businessId: business.id,
         conversationId: conversation.id,
         status: conversation.status,
@@ -172,10 +170,10 @@ function createEventPipelineService(overrides = {}) {
           business.id,
           engineResult.nextNodeId || 'escalate_agent'
         );
-        await conversationService.updateConversationStatusByBusiness(conversation.id, business.id, 'active');
-        logger.info('conversation_escalated_to_agent', {
+        logger.info('conversation_escalation_requested', {
           businessId: business.id,
           conversationId: conversation.id,
+          status: conversation.status,
           currentNodeId: engineResult.currentNodeId,
           nextNodeId: engineResult.nextNodeId || 'escalate_agent'
         });

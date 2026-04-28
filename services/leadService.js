@@ -109,28 +109,25 @@ async function upsertLeadFromIncomingMessage(businessId, phone) {
   return result.rows[0] || null;
 }
 
-// Reopens CLOSED leads to CONTACTED when a customer returns.
+// Keeps CLOSED leads closed; only refreshes interaction timestamps.
 /**
- * Reabre leads cerrados cuando el cliente vuelve a escribir.
+ * Mantiene leads cerrados como cerrados cuando el cliente vuelve a escribir.
  * @param {string} businessId - Id del negocio.
  * @param {string} phone - Telefono del cliente.
- * @returns {Promise<object|null>} Lead reabierto o null si no aplica.
+ * @returns {Promise<object|null>} Lead actualizado o null si no existe.
  */
 async function reopenLeadOnIncomingMessage(businessId, phone) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) return null;
 
-  // When a customer sends an inbound message to a CLOSED lead, reactivate it to CONTACTED.
-  // Do NOT reopen QUALIFIED leads - they're intentionally in that state and client engagement
-  // doesn't automatically demote them (avoid loop: agent promotes → customer replies → demotes again).
+  // Incoming customer activity should not reactivate a CLOSED lead automatically.
+  // Keep status as-is and only bump interaction timestamps.
   const q = `
     UPDATE leads
-    SET status = 'CONTACTED',
-        updated_at = now(),
+    SET updated_at = now(),
         last_interaction_at = now()
     WHERE business_id = $1
       AND phone = $2
-      AND status = 'CLOSED'
     RETURNING
       id,
       business_id,
@@ -145,7 +142,7 @@ async function reopenLeadOnIncomingMessage(businessId, phone) {
   return result.rows[0] || null;
 }
 
-// Moves NEW/CLOSED leads to CONTACTED when an agent sends a message.
+// Moves NEW leads to CONTACTED when an agent sends a message.
 /**
  * Promueve lead a CONTACTED por mensaje de agente.
  * @param {string} businessId - Id del negocio.
@@ -162,7 +159,7 @@ async function promoteLeadOnAgentMessage(businessId, phone) {
     ON CONFLICT (business_id, phone)
     DO UPDATE SET
       status = CASE
-        WHEN leads.status IN ('NEW', 'CLOSED') THEN 'CONTACTED'
+        WHEN leads.status = 'NEW' THEN 'CONTACTED'
         ELSE leads.status
       END,
       updated_at = now(),
