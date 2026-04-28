@@ -40,9 +40,13 @@ function buildAllowedOrigins() {
     .map((origin) => normalizeOrigin(origin))
     .filter(Boolean);
 
-  const defaults = isProduction
-    ? ['https://chatbot-wp-frontend.vercel.app']
-    : ['http://localhost:3000', 'http://localhost:3001'];
+  // Always allow production frontend + localhost for development
+  // (even if NODE_ENV is not strictly 'production', e.g., ngrok or staging)
+  const defaults = [
+    'https://chatbot-wp-frontend.vercel.app', // Production frontend
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ];
 
   return new Set([...defaults, ...fromEnv]);
 }
