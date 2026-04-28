@@ -8,6 +8,7 @@ function getInitStatements(models) {
     models.seedDefaultClinicBotFlows,
     models.createWhatsappAccountsTable,
     models.createConversationsTable,
+    models.resetEscalationConversationNodesToStart,
     models.migrateClinicFlowsToDefaultAdminTemplate,
     models.migratePrincipalBusinessToReplaiSalesFlow,
     models.migrateConversationsCurrentNodeColumn,

@@ -38,7 +38,8 @@ const {
 const {
   seedDefaultClinicBotFlows,
   migrateClinicFlowsToDefaultAdminTemplate,
-  migratePrincipalBusinessToReplaiSalesFlow
+  migratePrincipalBusinessToReplaiSalesFlow,
+  resetEscalationConversationNodesToStart
 } = require('./models/seedSql');
 
 const {
@@ -80,5 +81,6 @@ module.exports = {
   seedDefaultClinicBotFlows,
   migrateClinicFlowsToDefaultAdminTemplate,
   migratePrincipalBusinessToReplaiSalesFlow,
+  resetEscalationConversationNodesToStart,
   defaultAdminBotFlowNodes
 };

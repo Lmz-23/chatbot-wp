@@ -196,14 +196,26 @@ async function generateResponse(message, context, meta = {}) {
   const messageText = normalizeText(message);
   const conversationId = meta.conversationId || null;
   const businessId = meta.businessId || null;
+  let conversationStatus = null;
 
   let currentNodeId = normalizeText(meta.currentNode) || 'start';
 
   if (businessId && conversationId) {
     try {
       const conversation = await conversationService.getConversationWithBusiness(conversationId, businessId);
-      if (conversation && conversation.current_node) {
-        currentNodeId = normalizeText(conversation.current_node) || 'start';
+      if (conversation) {
+        conversationStatus = normalizeText(conversation.status) || null;
+        if (conversation.current_node) {
+          currentNodeId = normalizeText(conversation.current_node) || 'start';
+        }
+
+        if (
+          conversationStatus === 'closed'
+          || currentNodeId === 'escalate_agent'
+          || currentNodeId === 'escalate_urgent'
+        ) {
+          currentNodeId = 'start';
+        }
       }
     } catch (err) {
       logger.warn('conversation_flow_context_failed', {
@@ -249,7 +261,8 @@ async function generateResponse(message, context, meta = {}) {
   logger.info('bot_engine_triggered', {
     conversationId,
     currentNode: currentNode ? currentNode.id : currentNodeId,
-    businessId
+    businessId,
+    status: conversationStatus
   });
 
   if (!currentNode) {
