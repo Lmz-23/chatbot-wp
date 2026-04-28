@@ -5,7 +5,7 @@ const {
 
 const seedDefaultClinicBotFlows = `
 INSERT INTO bot_flows (business_id, nodes)
-SELECT b.id, '${JSON.stringify(defaultClinicBotFlowNodes)}'::jsonb
+SELECT b.id, '${JSON.stringify(defaultAdminBotFlowNodes)}'::jsonb
 FROM businesses b
 WHERE NOT EXISTS (
   SELECT 1
