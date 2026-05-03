@@ -5,7 +5,7 @@ const logger = require('./utils/logger');
 const db = require('./db');
 
 const isProduction = process.env.NODE_ENV === 'production';
-const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'APP_SECRET', 'WHATSAPP_TOKEN'];
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET', 'APP_SECRET', 'WHATSAPP_TOKEN', 'GROQ_API_KEY'];
 if (isProduction) {
   requiredEnvVars.push('FRONTEND_URL');
 }

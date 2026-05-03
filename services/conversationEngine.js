@@ -3,8 +3,10 @@ const leadService = require('./leadService');
 const settingsService = require('./settingsService');
 const botFlowService = require('./botFlowService');
 const conversationService = require('./conversationService');
+const contextService = require('./contextService');
 const businessService = require('./businessService');
 const { DEFAULT_BOT_MESSAGES } = require('./defaultMessages');
+const { generateBotResponse } = require('./aiService');
 const logger = require('../utils/logger');
 
 const defaultBotFlowNodes = [
@@ -57,7 +59,7 @@ function findNodeById(nodes, nodeId) {
  * @param {string} messageText - Mensaje entrante del usuario.
  * @returns {string|null} Id del siguiente nodo o null si no hay transicion.
  */
-function matchTransition(node, messageText) {
+function resolveTransition(node, messageText) {
   const transitions = Array.isArray(node?.transitions) ? node.transitions : [];
   const normalizedMessage = normalizeText(messageText);
 
@@ -65,11 +67,11 @@ function matchTransition(node, messageText) {
     const keywords = Array.isArray(transition?.keywords) ? transition.keywords : [];
     const hasMatch = keywords.some((keyword) => normalizedMessage.includes(normalizeText(keyword)));
     if (hasMatch) {
-      return transition?.next || null;
+      return { nextNodeId: transition?.next || null, matched: true };
     }
   }
 
-  return node?.default || null;
+  return { nextNodeId: node?.default || null, matched: false };
 }
 
 /**
@@ -269,9 +271,52 @@ async function generateResponse(message, context, meta = {}) {
     return buildLegacyResponse(message, context, meta);
   }
 
-  const nextNodeId = matchTransition(currentNode, messageText);
+  const { nextNodeId, matched } = resolveTransition(currentNode, messageText);
   if (!nextNodeId) {
     return buildLegacyResponse(message, context, meta);
+  }
+
+  const isDefaultFallbackNode = !matched && (nextNodeId === 'fallback' || nextNodeId === 'escalate_agent');
+  if (isDefaultFallbackNode) {
+    try {
+      const conversationHistory = conversationId ? await contextService.getConversationContext(conversationId) : context;
+      const aiReply = await generateBotResponse(
+        businessName || 'tu negocio',
+        Array.isArray(conversationHistory) ? conversationHistory : [],
+        message,
+        currentNode.message || currentNode.id
+      );
+
+      if (aiReply && aiReply.trim()) {
+        return {
+          replyText: aiReply.trim(),
+          nextNodeId: currentNode.id,
+          shouldSendMessage: true,
+          shouldActivateConversation: false,
+          usedFlow: false,
+          fallbackUsed: false,
+          currentNodeId: currentNode.id,
+          aiGenerated: true
+        };
+      }
+    } catch (err) {
+      logger.warn('groq_fallback_failed', {
+        businessId,
+        conversationId,
+        err: err && err.message ? err.message : err
+      });
+    }
+
+    const fallbackNode = findNodeById(flowNodes, 'fallback') || defaultBotFlowNodes[1];
+    return {
+      replyText: replaceBusinessPlaceholders(fallbackNode.message, businessName),
+      nextNodeId: currentNode.id,
+      shouldSendMessage: true,
+      shouldActivateConversation: false,
+      usedFlow: false,
+      fallbackUsed: true,
+      currentNodeId: currentNode.id
+    };
   }
 
   if (nextNodeId === 'escalate_agent') {
