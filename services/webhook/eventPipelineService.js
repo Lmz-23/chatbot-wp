@@ -206,6 +206,22 @@ function createEventPipelineService(overrides = {}) {
       status: 'sent'
     });
 
+    if (engineResult.extractedLeadData) {
+      try {
+        await leadService.upsertLeadFromConversationData(
+          business.id,
+          normalizedFromPhone,
+          engineResult.extractedLeadData
+        );
+      } catch (leadErr) {
+        logger.error('lead_extraction_persist_failed', {
+          businessId: business.id,
+          phone: normalizedFromPhone,
+          err: leadErr && leadErr.message ? leadErr.message : leadErr
+        });
+      }
+    }
+
     if (engineResult.usedFlow && engineResult.nextNodeId) {
       try {
         await conversationService.updateConversationCurrentNodeByBusiness(

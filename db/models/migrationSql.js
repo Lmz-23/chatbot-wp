@@ -29,6 +29,41 @@ EXCEPTION WHEN undefined_table THEN
   NULL;
 END $$;`;
 
+const migrateBusinessSettingsContextColumns = `
+DO $$
+BEGIN
+  ALTER TABLE business_settings
+    ADD COLUMN IF NOT EXISTS business_description TEXT;
+
+  ALTER TABLE business_settings
+    ADD COLUMN IF NOT EXISTS services JSONB DEFAULT '[]'::jsonb;
+
+  ALTER TABLE business_settings
+    ADD COLUMN IF NOT EXISTS schedule TEXT;
+
+  ALTER TABLE business_settings
+    ADD COLUMN IF NOT EXISTS contact_info TEXT;
+
+  ALTER TABLE business_settings
+    ADD COLUMN IF NOT EXISTS bot_instructions TEXT;
+
+  ALTER TABLE business_settings
+    ADD COLUMN IF NOT EXISTS faq JSONB DEFAULT '[]'::jsonb;
+
+  UPDATE business_settings
+  SET services = COALESCE(services, '[]'::jsonb),
+      faq = COALESCE(faq, '[]'::jsonb)
+  WHERE services IS NULL OR faq IS NULL;
+
+  ALTER TABLE business_settings
+    ALTER COLUMN services SET DEFAULT '[]'::jsonb;
+
+  ALTER TABLE business_settings
+    ALTER COLUMN faq SET DEFAULT '[]'::jsonb;
+EXCEPTION WHEN undefined_table THEN
+  NULL;
+END $$;`;
+
 const migrateConversationsCurrentNodeColumn = `
 DO $$
 BEGIN
@@ -74,6 +109,7 @@ DECLARE
 BEGIN
   ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone TEXT;
   ALTER TABLE leads ADD COLUMN IF NOT EXISTS name TEXT;
+  ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes TEXT;
   ALTER TABLE leads ADD COLUMN IF NOT EXISTS status TEXT;
   ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_interaction_at TIMESTAMPTZ;
   ALTER TABLE leads ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ;
@@ -167,6 +203,7 @@ END $$;`;
 module.exports = {
   migrateBusinessesIsActiveColumn,
   migrateBusinessesContactColumns,
+  migrateBusinessSettingsContextColumns,
   migrateConversationsCurrentNodeColumn,
   migrateConversationStatusConstraint,
   migrateLeadsTableSchema,

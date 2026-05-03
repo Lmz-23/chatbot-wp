@@ -4,7 +4,13 @@ const DEFAULT_SETTINGS = {
   welcome_message: 'Hola! Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?',
   pricing_message: 'Con gusto. Nuestros precios dependen del servicio y volumen. Si quieres, te comparto una cotización rápida.',
   lead_capture_message: 'Perfecto, uno de nuestros asesores te contactará pronto. ¡Gracias por tu interés!',
-  fallback_message: 'Gracias por tu mensaje. Ya reviso el contexto de la conversación y te ayudo enseguida.'
+  fallback_message: 'Gracias por tu mensaje. Ya reviso el contexto de la conversación y te ayudo enseguida.',
+  business_description: '',
+  services: [],
+  schedule: '',
+  contact_info: '',
+  bot_instructions: '',
+  faq: []
 };
 
 async function getSettingsByBusinessId(businessId) {
@@ -31,9 +37,15 @@ async function createDefaultSettings(businessId) {
       welcome_message,
       pricing_message,
       lead_capture_message,
-      fallback_message
+      fallback_message,
+      business_description,
+      services,
+      schedule,
+      contact_info,
+      bot_instructions,
+      faq
     )
-    VALUES ($1, $2, $3, $4, $5)
+    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11::jsonb)
     ON CONFLICT (business_id) DO NOTHING`;
 
   await db.query(q, [
@@ -41,7 +53,13 @@ async function createDefaultSettings(businessId) {
     DEFAULT_SETTINGS.welcome_message,
     DEFAULT_SETTINGS.pricing_message,
     DEFAULT_SETTINGS.lead_capture_message,
-    DEFAULT_SETTINGS.fallback_message
+    DEFAULT_SETTINGS.fallback_message,
+    DEFAULT_SETTINGS.business_description,
+    JSON.stringify(DEFAULT_SETTINGS.services),
+    DEFAULT_SETTINGS.schedule,
+    DEFAULT_SETTINGS.contact_info,
+    DEFAULT_SETTINGS.bot_instructions,
+    JSON.stringify(DEFAULT_SETTINGS.faq)
   ]);
 }
 
@@ -79,6 +97,12 @@ async function updateSettings(businessId, updates = {}) {
       pricing_message = COALESCE($3, pricing_message),
       lead_capture_message = COALESCE($4, lead_capture_message),
       fallback_message = COALESCE($5, fallback_message),
+      business_description = COALESCE($6, business_description),
+      services = COALESCE($7::jsonb, services),
+      schedule = COALESCE($8, schedule),
+      contact_info = COALESCE($9, contact_info),
+      bot_instructions = COALESCE($10, bot_instructions),
+      faq = COALESCE($11::jsonb, faq),
       updated_at = now()
     WHERE business_id = $1
     RETURNING *`;
@@ -88,7 +112,13 @@ async function updateSettings(businessId, updates = {}) {
     updates.welcome_message ?? null,
     updates.pricing_message ?? null,
     updates.lead_capture_message ?? null,
-    updates.fallback_message ?? null
+    updates.fallback_message ?? null,
+    updates.business_description ?? null,
+    updates.services !== undefined ? JSON.stringify(updates.services) : null,
+    updates.schedule ?? null,
+    updates.contact_info ?? null,
+    updates.bot_instructions ?? null,
+    updates.faq !== undefined ? JSON.stringify(updates.faq) : null
   ]);
 
   return result.rows[0] || null;

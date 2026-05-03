@@ -20,6 +20,7 @@ async function findLeadByBusinessAndPhone(businessId, phone) {
       business_id,
       phone,
       name,
+      notes,
       status,
       created_at,
       updated_at,
@@ -43,7 +44,7 @@ async function findLeadByBusinessAndPhone(businessId, phone) {
  * @returns {Promise<object|null>} Lead creado/actualizado.
  * @throws {Error} Si faltan claves o el estado es invalido.
  */
-async function createLead(businessId, phone, status = 'NEW', name = null) {
+async function createLead(businessId, phone, status = 'NEW', name = null, notes = null) {
   const normalizedPhone = normalizePhone(phone);
   if (!businessId || !normalizedPhone) {
     throw new Error('missing_lead_keys');
@@ -55,8 +56,8 @@ async function createLead(businessId, phone, status = 'NEW', name = null) {
   }
 
   const q = `
-    INSERT INTO leads (business_id, phone, name, status, last_interaction_at)
-    VALUES ($1, $2, $3, $4, now())
+    INSERT INTO leads (business_id, phone, name, notes, status, last_interaction_at)
+    VALUES ($1, $2, $3, $4, $5, now())
     ON CONFLICT (business_id, phone)
     DO UPDATE SET
       name = COALESCE(EXCLUDED.name, leads.name),
@@ -68,12 +69,13 @@ async function createLead(businessId, phone, status = 'NEW', name = null) {
       business_id,
       phone,
       name,
+      notes,
       status,
       created_at,
       updated_at,
       last_interaction_at`;
 
-  const result = await db.query(q, [businessId, normalizedPhone, name, normalizedStatus]);
+  const result = await db.query(q, [businessId, normalizedPhone, name, notes, normalizedStatus]);
   return result.rows[0] || null;
 }
 
@@ -100,6 +102,7 @@ async function upsertLeadFromIncomingMessage(businessId, phone) {
       business_id,
       phone,
       name,
+      notes,
       status,
       created_at,
       updated_at,
@@ -133,6 +136,7 @@ async function reopenLeadOnIncomingMessage(businessId, phone) {
       business_id,
       phone,
       name,
+      notes,
       status,
       created_at,
       updated_at,
@@ -169,6 +173,7 @@ async function promoteLeadOnAgentMessage(businessId, phone) {
       business_id,
       phone,
       name,
+      notes,
       status,
       created_at,
       updated_at,
@@ -194,6 +199,7 @@ async function closeLeadByBusinessAndPhone(businessId, phone) {
       business_id,
       phone,
       name,
+      notes,
       status,
       created_at,
       updated_at,
@@ -215,6 +221,7 @@ async function listLeadsByBusinessId(businessId) {
       id,
       phone,
       name,
+      notes,
       status,
       created_at,
       updated_at,
@@ -236,7 +243,7 @@ async function listLeadsByBusinessId(businessId) {
  * @returns {Promise<object|null>} Lead actualizado o null.
  * @throws {Error} Si status es invalido.
  */
-async function updateLeadByIdAndBusiness(leadId, businessId, { name, status }) {
+async function updateLeadByIdAndBusiness(leadId, businessId, { name, status, notes }) {
   const updates = [];
   const params = [leadId, businessId];
 
@@ -252,6 +259,11 @@ async function updateLeadByIdAndBusiness(leadId, businessId, { name, status }) {
     }
     params.push(normalizedStatus);
     updates.push(`status = $${params.length}`);
+  }
+
+  if (notes !== undefined) {
+    params.push(notes === null ? null : String(notes));
+    updates.push(`notes = $${params.length}`);
   }
 
   if (updates.length === 0) {
@@ -270,12 +282,47 @@ async function updateLeadByIdAndBusiness(leadId, businessId, { name, status }) {
       business_id,
       phone,
       name,
+      notes,
       status,
       created_at,
       updated_at,
       last_interaction_at`;
 
   const result = await db.query(q, params);
+  return result.rows[0] || null;
+}
+
+async function upsertLeadFromConversationData(businessId, phone, data = {}) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!businessId || !normalizedPhone) return null;
+
+  const clientName = typeof data.client_name === 'string' ? data.client_name.trim() : '';
+  const interest = typeof data.interest === 'string' ? data.interest.trim() : '';
+
+  const q = `
+    INSERT INTO leads (business_id, phone, name, notes, status, last_interaction_at)
+    VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), 'NEW', now())
+    ON CONFLICT (business_id, phone)
+    DO UPDATE SET
+      name = CASE
+        WHEN COALESCE(leads.name, '') = '' AND EXCLUDED.name IS NOT NULL THEN EXCLUDED.name
+        ELSE leads.name
+      END,
+      notes = COALESCE(EXCLUDED.notes, leads.notes),
+      updated_at = now(),
+      last_interaction_at = now()
+    RETURNING
+      id,
+      business_id,
+      phone,
+      name,
+      notes,
+      status,
+      created_at,
+      updated_at,
+      last_interaction_at`;
+
+  const result = await db.query(q, [businessId, normalizedPhone, clientName || null, interest || null]);
   return result.rows[0] || null;
 }
 
@@ -287,6 +334,7 @@ module.exports = {
   reopenLeadOnIncomingMessage,
   promoteLeadOnAgentMessage,
   closeLeadByBusinessAndPhone,
+  upsertLeadFromConversationData,
   listLeadsByBusinessId,
   updateLeadByIdAndBusiness
 };

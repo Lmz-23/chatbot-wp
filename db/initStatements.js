@@ -3,6 +3,7 @@ function getInitStatements(models) {
     models.createBusinessesTable,
     models.migrateBusinessesIsActiveColumn,
     models.migrateBusinessesContactColumns,
+    models.migrateBusinessSettingsContextColumns,
     models.createBotFlowsTable,
     models.createBotFlowsBusinessIndex,
     models.seedDefaultClinicBotFlows,

@@ -29,6 +29,7 @@ const {
 const {
   migrateBusinessesIsActiveColumn,
   migrateBusinessesContactColumns,
+  migrateBusinessSettingsContextColumns,
   migrateConversationsCurrentNodeColumn,
   migrateConversationStatusConstraint,
   migrateLeadsTableSchema,
@@ -74,6 +75,7 @@ module.exports = {
   createIndexes,
   migrateBusinessesIsActiveColumn,
   migrateBusinessesContactColumns,
+  migrateBusinessSettingsContextColumns,
   migrateConversationsCurrentNodeColumn,
   migrateConversationStatusConstraint,
   migrateLeadsTableSchema,

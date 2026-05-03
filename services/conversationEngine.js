@@ -1,220 +1,42 @@
-const intentRouter = require('./intentRouter');
-const leadService = require('./leadService');
 const settingsService = require('./settingsService');
-const botFlowService = require('./botFlowService');
 const conversationService = require('./conversationService');
-const contextService = require('./contextService');
 const businessService = require('./businessService');
 const { DEFAULT_BOT_MESSAGES } = require('./defaultMessages');
-const { generateBotResponse } = require('./aiService');
+const { generateBotResponse, extractClientData } = require('./aiService');
 const logger = require('../utils/logger');
-
-const defaultBotFlowNodes = [
-  {
-    id: 'start',
-    message: 'Hola, bienvenido a [business_name]. ¿En qué podemos ayudarte?',
-    transitions: [],
-    default: 'fallback'
-  },
-  {
-    id: 'fallback',
-    message: 'Gracias por tu mensaje. Un asesor te contactará pronto.',
-    transitions: [],
-    default: 'escalate_agent'
-  }
-];
-
-/**
- * Normaliza texto para comparaciones semanticas del flujo.
- * @param {unknown} value - Valor de entrada potencialmente vacio o no string.
- * @returns {string} Texto en minusculas y sin espacios extremos.
- */
-function normalizeText(value) {
-  return (value || '').toString().trim().toLowerCase();
+function buildFallbackResponse(settings) {
+  return settings?.fallback_message || DEFAULT_BOT_MESSAGES.fallback_message;
 }
 
-/**
- * Verifica que el valor sea un arreglo con al menos un elemento.
- * @param {unknown} value - Valor a validar.
- * @returns {boolean} true cuando es arreglo no vacio.
- */
-function isNonEmptyArray(value) {
-  return Array.isArray(value) && value.length > 0;
+function buildExtractionHistory(conversationHistory) {
+  if (!Array.isArray(conversationHistory)) return [];
+
+  return conversationHistory
+    .slice(-12)
+    .map((message) => ({
+      role: message.sender_type === 'customer' || message.direction === 'inbound' ? 'user' : 'assistant',
+      content: message.message_text || message.body || ''
+    }))
+    .filter((message) => String(message.content || '').trim().length > 0);
 }
 
-/**
- * Busca un nodo por id dentro de un flujo.
- * @param {Array<object>} nodes - Nodos del flujo.
- * @param {string} nodeId - Id del nodo a ubicar.
- * @returns {object|null} Nodo encontrado o null.
- */
-function findNodeById(nodes, nodeId) {
-  if (!isNonEmptyArray(nodes) || !nodeId) return null;
-  return nodes.find((node) => node && node.id === nodeId) || null;
-}
-
-/**
- * Resuelve la siguiente transicion de un nodo segun palabras clave.
- * @param {object} node - Nodo actual con transitions/default.
- * @param {string} messageText - Mensaje entrante del usuario.
- * @returns {string|null} Id del siguiente nodo o null si no hay transicion.
- */
-function resolveTransition(node, messageText) {
-  const transitions = Array.isArray(node?.transitions) ? node.transitions : [];
-  const normalizedMessage = normalizeText(messageText);
-
-  for (const transition of transitions) {
-    const keywords = Array.isArray(transition?.keywords) ? transition.keywords : [];
-    const hasMatch = keywords.some((keyword) => normalizedMessage.includes(normalizeText(keyword)));
-    if (hasMatch) {
-      return { nextNodeId: transition?.next || null, matched: true };
-    }
-  }
-
-  return { nextNodeId: node?.default || null, matched: false };
-}
-
-/**
- * Reemplaza placeholders entre corchetes por el nombre del negocio.
- * @param {string} text - Texto base potencialmente con placeholders.
- * @param {string} businessName - Nombre del negocio.
- * @returns {string} Texto con placeholders reemplazados.
- */
-function replaceBusinessPlaceholders(text, businessName) {
-  if (typeof text !== 'string') return text;
-
-  const normalizedBusinessName = (businessName || '').toString().trim();
-  if (!normalizedBusinessName) return text;
-
-  // Replaces any token like [Nombre Clinica], [Negocio], [Empresa], etc.
-  return text.replace(/\[[^\]]+\]/g, normalizedBusinessName);
-}
-
-/**
- * Genera respuesta de respaldo basada en el router legacy de intents.
- * @param {string} message - Mensaje entrante.
- * @param {Array<object>} context - Historial de contexto conversacional.
- * @param {{ businessId?: string, phone?: string }} meta - Metadatos de tenant y telefono.
- * @returns {Promise<object>} Resultado de respuesta con flags de envio/flujo.
- * @throws {Error} Puede propagar errores no controlados de dependencias.
- */
-async function buildLegacyResponse(message, context, meta = {}) {
-  const intent = intentRouter.detectIntent(message);
-  const hasHistory = Array.isArray(context) && context.length > 0;
-  let settings = null;
-
-  try {
-    if (meta.businessId) {
-      settings = await settingsService.getOrCreateSettings(meta.businessId);
-    }
-  } catch (err) {
-    logger.error('settings_load_failed', {
-      businessId: meta.businessId || null,
-      err: err && err.message ? err.message : err
-    });
-  }
-
-  const messages = {
-    welcome_message: settings?.welcome_message || DEFAULT_BOT_MESSAGES.welcome_message,
-    pricing_message: settings?.pricing_message || DEFAULT_BOT_MESSAGES.pricing_message,
-    lead_capture_message: settings?.lead_capture_message || DEFAULT_BOT_MESSAGES.lead_capture_message,
-    fallback_message: settings?.fallback_message || DEFAULT_BOT_MESSAGES.fallback_message
-  };
-
-  switch (intent) {
-    case 'greeting':
-      return {
-        replyText: messages.welcome_message,
-        nextNodeId: null,
-        shouldSendMessage: true,
-        shouldActivateConversation: false,
-        usedFlow: false,
-        fallbackUsed: true,
-        currentNodeId: null
-      };
-
-    case 'pricing':
-      return {
-        replyText: messages.pricing_message,
-        nextNodeId: null,
-        shouldSendMessage: true,
-        shouldActivateConversation: false,
-        usedFlow: false,
-        fallbackUsed: true,
-        currentNodeId: null
-      };
-
-    case 'lead_capture': {
-      const { businessId, phone } = meta;
-      if (businessId && phone) {
-        try {
-          await leadService.upsertLeadFromIncomingMessage(businessId, phone);
-        } catch (leadErr) {
-          // Log but never block the reply to the user
-          logger.error('lead_capture_failed', {
-            businessId,
-            phone,
-            err: leadErr && leadErr.message ? leadErr.message : leadErr
-          });
-        }
-      }
-
-      return {
-        replyText: messages.lead_capture_message,
-        nextNodeId: null,
-        shouldSendMessage: true,
-        shouldActivateConversation: false,
-        usedFlow: false,
-        fallbackUsed: true,
-        currentNodeId: null
-      };
-    }
-
-    default:
-      return {
-        replyText: hasHistory ? messages.fallback_message : messages.fallback_message,
-        nextNodeId: null,
-        shouldSendMessage: true,
-        shouldActivateConversation: false,
-        usedFlow: false,
-        fallbackUsed: true,
-        currentNodeId: null
-      };
-  }
-}
-
-// Generates the next bot action using the business flow when available.
-// When there is no flow configured, the legacy intentRouter remains the fallback.
-// meta: { businessId, conversationId, phone }.
-/**
- * Genera la siguiente accion del bot usando flujo configurable por negocio.
- * @param {string} message - Mensaje entrante del usuario.
- * @param {Array<object>} context - Historial de mensajes de la conversacion.
- * @param {{ businessId?: string, conversationId?: string, phone?: string, currentNode?: string }} meta - Contexto de negocio y conversacion.
- * @returns {Promise<object>} Objeto con replyText, nextNodeId y banderas de control.
- * @throws {Error} Puede lanzar errores de acceso a servicios externos o DB.
- */
 async function generateResponse(message, context, meta = {}) {
-  const messageText = normalizeText(message);
   const conversationId = meta.conversationId || null;
   const businessId = meta.businessId || null;
   let conversationStatus = null;
 
-  let currentNodeId = normalizeText(meta.currentNode) || 'start';
+  let currentNodeId = 'start';
 
   if (businessId && conversationId) {
     try {
       const conversation = await conversationService.getConversationWithBusiness(conversationId, businessId);
       if (conversation) {
-        conversationStatus = normalizeText(conversation.status) || null;
-        if (conversation.current_node) {
-          currentNodeId = normalizeText(conversation.current_node) || 'start';
-        }
+        conversationStatus = conversation.status ? String(conversation.status).trim().toLowerCase() : null;
 
         if (
           conversationStatus === 'closed'
-          || currentNodeId === 'escalate_agent'
-          || currentNodeId === 'escalate_urgent'
+          || conversation.current_node === 'escalate_agent'
+          || conversation.current_node === 'escalate_urgent'
         ) {
           currentNodeId = 'start';
         }
@@ -229,128 +51,76 @@ async function generateResponse(message, context, meta = {}) {
   }
 
   if (!businessId) {
-    return buildLegacyResponse(message, context, meta);
-  }
-
-  let businessName = null;
-  let businessContext = { description: '' };
-  try {
-    const business = await businessService.getById(businessId);
-    businessName = business && business.name ? business.name : null;
-    businessContext = {
-      description: business && typeof business.description === 'string'
-        ? business.description
-        : businessName || ''
-    };
-  } catch (err) {
-    logger.warn('business_name_load_failed', {
-      businessId,
-      err: err && err.message ? err.message : err
-    });
-  }
-
-  let flow = null;
-  try {
-    flow = await botFlowService.getFlowByBusiness(businessId);
-  } catch (err) {
-    logger.warn('bot_flow_load_failed', {
-      businessId,
-      err: err && err.message ? err.message : err
-    });
-  }
-
-  const flowNodes = isNonEmptyArray(flow?.nodes) ? flow.nodes : defaultBotFlowNodes;
-
-  const currentNode = findNodeById(flowNodes, currentNodeId)
-    || findNodeById(flowNodes, 'start')
-    || flowNodes[0]
-    || null;
-
-  logger.info('bot_engine_triggered', {
-    conversationId,
-    currentNode: currentNode ? currentNode.id : currentNodeId,
-    businessId,
-    status: conversationStatus
-  });
-
-  if (!currentNode) {
-    return buildLegacyResponse(message, context, meta);
-  }
-
-  const { nextNodeId, matched } = resolveTransition(currentNode, messageText);
-  if (!nextNodeId) {
-    return buildLegacyResponse(message, context, meta);
-  }
-
-  const isDefaultFallbackNode = !matched && (nextNodeId === 'fallback' || nextNodeId === 'escalate_agent');
-  if (isDefaultFallbackNode) {
-    try {
-      const conversationHistory = conversationId ? await contextService.getConversationContext(conversationId) : context;
-      const aiReply = await generateBotResponse(
-        businessName || 'tu negocio',
-        Array.isArray(conversationHistory) ? conversationHistory : [],
-        message,
-        currentNode.message || currentNode.id,
-        businessContext
-      );
-
-      if (aiReply && aiReply.trim()) {
-        return {
-          replyText: aiReply.trim(),
-          nextNodeId: currentNode.id,
-          shouldSendMessage: true,
-          shouldActivateConversation: false,
-          usedFlow: false,
-          fallbackUsed: false,
-          currentNodeId: currentNode.id,
-          aiGenerated: true
-        };
-      }
-    } catch (err) {
-      logger.warn('groq_fallback_failed', {
-        businessId,
-        conversationId,
-        err: err && err.message ? err.message : err
-      });
-    }
-
-    const fallbackNode = findNodeById(flowNodes, 'fallback') || defaultBotFlowNodes[1];
     return {
-      replyText: replaceBusinessPlaceholders(fallbackNode.message, businessName),
-      nextNodeId: currentNode.id,
+      replyText: DEFAULT_BOT_MESSAGES.fallback_message,
+      nextNodeId: null,
       shouldSendMessage: true,
       shouldActivateConversation: false,
       usedFlow: false,
       fallbackUsed: true,
-      currentNodeId: currentNode.id
+      currentNodeId: null,
+      extractedLeadData: null
     };
   }
 
-  if (nextNodeId === 'escalate_agent') {
-    return {
-      replyText: null,
-      nextNodeId,
-      shouldSendMessage: false,
-      shouldActivateConversation: true,
-      usedFlow: true,
-      fallbackUsed: false,
-      currentNodeId: currentNode.id
-    };
+  let businessName = 'tu negocio';
+  let settings = null;
+  try {
+    const [business, loadedSettings] = await Promise.all([
+      businessService.getById(businessId),
+      settingsService.getOrCreateSettings(businessId)
+    ]);
+
+    businessName = business && business.name ? business.name : businessName;
+    settings = loadedSettings;
+  } catch (err) {
+    logger.warn('business_context_load_failed', {
+      businessId,
+      err: err && err.message ? err.message : err
+    });
   }
 
-  const nextNode = findNodeById(flowNodes, nextNodeId);
-  if (!nextNode || typeof nextNode.message !== 'string' || !nextNode.message.trim()) {
-    return buildLegacyResponse(message, context, meta);
+  const conversationHistory = Array.isArray(context) ? context : [];
+
+  logger.info('bot_engine_triggered', {
+    conversationId,
+    businessId,
+    status: conversationStatus
+  });
+
+  let replyText = null;
+  try {
+    replyText = await generateBotResponse(businessName, conversationHistory, message, settings || {});
+  } catch (err) {
+    logger.warn('groq_reply_failed', {
+      businessId,
+      conversationId,
+      err: err && err.message ? err.message : err
+    });
   }
+
+  const extractedLeadData = await (async () => {
+    try {
+      return await extractClientData(conversationHistory);
+    } catch (err) {
+      logger.warn('groq_extraction_failed', {
+        businessId,
+        conversationId,
+        err: err && err.message ? err.message : err
+      });
+      return null;
+    }
+  })();
 
   return {
-    replyText: replaceBusinessPlaceholders(nextNode.message, businessName),
-    nextNodeId: nextNode.id,
+    replyText: replyText && replyText.trim() ? replyText.trim() : buildFallbackResponse(settings),
+    nextNodeId: null,
     shouldSendMessage: true,
     shouldActivateConversation: false,
-    usedFlow: true,
-    fallbackUsed: false,
-    currentNodeId: currentNode.id
+    usedFlow: false,
+    fallbackUsed: !replyText,
+    currentNodeId,
+    extractedLeadData
   };
 }
 
