@@ -12,14 +12,34 @@ function isUuid(value) {
 }
 
 function resolveBusinessScope(req) {
-  const tokenBusinessId = req.user && req.user.businessId ? req.user.businessId : null;
-  const bodyBusinessId = req.body.businessId || req.body.business_id;
+  const user = req.user || null;
+  const tokenBusinessId = user && user.businessId ? user.businessId : null;
+  const bodyBusinessId = req.body && (req.body.businessId || req.body.business_id)
+    ? (req.body.businessId || req.body.business_id)
+    : null;
+  const queryBusinessId = req.query && typeof req.query.businessId === 'string'
+    ? req.query.businessId.trim()
+    : null;
+  const requestedBusinessId = bodyBusinessId || queryBusinessId;
+
+  if (user && user.platformRole === 'PLATFORM_ADMIN') {
+    const scopedBusinessId = requestedBusinessId || tokenBusinessId;
+    if (!scopedBusinessId) {
+      return { error: { status: 400, body: { error: 'businessId is required for platform admin' } } };
+    }
+
+    if (!isUuid(scopedBusinessId)) {
+      return { error: { status: 400, body: { error: 'businessId must be a valid UUID' } } };
+    }
+
+    return { businessId: scopedBusinessId };
+  }
 
   if (!tokenBusinessId) {
     return { error: { status: 403, body: { error: 'forbidden' } } };
   }
 
-  if (bodyBusinessId && bodyBusinessId !== tokenBusinessId) {
+  if (requestedBusinessId && requestedBusinessId !== tokenBusinessId) {
     return { error: { status: 403, body: { error: 'forbidden' } } };
   }
 

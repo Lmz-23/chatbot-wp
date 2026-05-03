@@ -22,6 +22,7 @@ const {
   createBlockedNumbersTable,
   createBotSettingsTable,
   createBusinessSettingsTable,
+  createUsersEmailIndex,
   createWhatsappOutboundTable,
   createIndexes
 } = require('./models/schemaSql');
@@ -71,6 +72,7 @@ module.exports = {
   createBlockedNumbersTable,
   createBotSettingsTable,
   createBusinessSettingsTable,
+  createUsersEmailIndex,
   createWhatsappOutboundTable,
   createIndexes,
   migrateBusinessesIsActiveColumn,
