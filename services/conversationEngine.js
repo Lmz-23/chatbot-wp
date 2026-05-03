@@ -233,9 +233,15 @@ async function generateResponse(message, context, meta = {}) {
   }
 
   let businessName = null;
+  let businessContext = { description: '' };
   try {
     const business = await businessService.getById(businessId);
     businessName = business && business.name ? business.name : null;
+    businessContext = {
+      description: business && typeof business.description === 'string'
+        ? business.description
+        : businessName || ''
+    };
   } catch (err) {
     logger.warn('business_name_load_failed', {
       businessId,
@@ -284,7 +290,8 @@ async function generateResponse(message, context, meta = {}) {
         businessName || 'tu negocio',
         Array.isArray(conversationHistory) ? conversationHistory : [],
         message,
-        currentNode.message || currentNode.id
+        currentNode.message || currentNode.id,
+        businessContext
       );
 
       if (aiReply && aiReply.trim()) {
