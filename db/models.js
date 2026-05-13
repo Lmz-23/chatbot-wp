@@ -38,15 +38,8 @@ const {
 } = require('./models/migrationSql');
 
 const {
-  seedDefaultClinicBotFlows,
-  migrateClinicFlowsToDefaultAdminTemplate,
-  migratePrincipalBusinessToReplaiSalesFlow,
   resetEscalationConversationNodesToStart
 } = require('./models/seedSql');
-
-const {
-  defaultAdminBotFlowNodes
-} = require('./models/flowDefaults');
 
 module.exports = {
   createUsersTable,
@@ -82,9 +75,5 @@ module.exports = {
   migrateConversationStatusConstraint,
   migrateLeadsTableSchema,
   migrateUsersIsActiveColumn,
-  seedDefaultClinicBotFlows,
-  migrateClinicFlowsToDefaultAdminTemplate,
-  migratePrincipalBusinessToReplaiSalesFlow,
-  resetEscalationConversationNodesToStart,
-  defaultAdminBotFlowNodes
+  resetEscalationConversationNodesToStart
 };

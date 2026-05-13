@@ -3,6 +3,34 @@ const { normalizePhone } = require('../utils/phone');
 
 const ALLOWED_LEAD_STATUSES = new Set(['NEW', 'CONTACTED', 'QUALIFIED', 'CLOSED']);
 
+function parseLeadNotes(notes) {
+  if (!notes) return {};
+
+  if (typeof notes === 'object' && !Array.isArray(notes)) {
+    return notes;
+  }
+
+  if (typeof notes !== 'string') return {};
+
+  try {
+    const parsed = JSON.parse(notes);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildLeadNotes(existingNotes, incomingData = {}) {
+  const merged = {
+    ...parseLeadNotes(existingNotes),
+    ...Object.fromEntries(
+      Object.entries(incomingData).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
+    )
+  };
+
+  return Object.keys(merged).length ? JSON.stringify(merged) : null;
+}
+
 // Looks up a single lead by tenant + normalized phone.
 /**
  * Busca un lead por negocio y telefono normalizado.
@@ -297,11 +325,22 @@ async function upsertLeadFromConversationData(businessId, phone, data = {}) {
   if (!businessId || !normalizedPhone) return null;
 
   const clientName = typeof data.client_name === 'string' ? data.client_name.trim() : '';
+  const businessName = typeof data.business_name === 'string' ? data.business_name.trim() : '';
+  const contact = typeof data.contact === 'string' ? data.contact.trim() : '';
   const interest = typeof data.interest === 'string' ? data.interest.trim() : '';
+
+  const existingLead = await findLeadByBusinessAndPhone(businessId, normalizedPhone);
+  const nextName = existingLead && existingLead.name ? existingLead.name : (clientName || null);
+  const nextNotes = buildLeadNotes(existingLead ? existingLead.notes : null, {
+    client_name: clientName || null,
+    business_name: businessName || null,
+    contact: contact || null,
+    interest: interest || null
+  });
 
   const q = `
     INSERT INTO leads (business_id, phone, name, notes, status, last_interaction_at)
-    VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), 'NEW', now())
+    VALUES ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, now())
     ON CONFLICT (business_id, phone)
     DO UPDATE SET
       name = CASE
@@ -322,8 +361,92 @@ async function upsertLeadFromConversationData(businessId, phone, data = {}) {
       updated_at,
       last_interaction_at`;
 
-  const result = await db.query(q, [businessId, normalizedPhone, clientName || null, interest || null]);
+  const result = await db.query(q, [businessId, normalizedPhone, nextName || null, nextNotes, 'NEW']);
   return result.rows[0] || null;
+}
+
+/**
+ * Retorna todos los leads de un negocio con estado de conversación asociada.
+ * @param {string} businessId - Id del negocio.
+ * @returns {Promise<object[]>} Array de leads con conversation_status incluido.
+ */
+async function getLeadsWithConversationStatus(businessId) {
+  const q = `
+    SELECT
+      l.id,
+      l.business_id,
+      l.phone,
+      l.name,
+      l.notes,
+      l.status,
+      l.created_at,
+      l.updated_at,
+      l.last_interaction_at,
+      conv.conv_status AS conversation_status
+    FROM leads l
+    LEFT JOIN LATERAL (
+      SELECT c.status as conv_status
+      FROM conversations c
+      INNER JOIN whatsapp_accounts wa ON wa.id = c.whatsapp_account_id
+      WHERE wa.business_id = l.business_id
+        AND regexp_replace(c.user_phone, '\\D', '', 'g') = 
+            regexp_replace(l.phone, '\\D', '', 'g')
+      ORDER BY c.last_message_at DESC NULLS LAST
+      LIMIT 1
+    ) conv ON true
+    WHERE l.business_id = $1
+    ORDER BY l.last_interaction_at DESC, l.created_at DESC`;
+
+  const result = await db.query(q, [businessId]);
+  return result.rows;
+}
+
+/**
+ * Retorna un lead específico con estado de conversación asociada.
+ * @param {string} leadId - Id del lead.
+ * @param {string} businessId - Id del negocio (para scope).
+ * @returns {Promise<object|null>} Lead con conversation_status o null.
+ */
+async function getLeadWithConversationStatus(leadId, businessId) {
+  const q = `
+    SELECT
+      l.id,
+      l.business_id,
+      l.phone,
+      l.name,
+      l.notes,
+      l.status,
+      l.created_at,
+      l.updated_at,
+      l.last_interaction_at,
+      conv.conv_status AS conversation_status
+    FROM leads l
+    LEFT JOIN LATERAL (
+      SELECT c.status as conv_status
+      FROM conversations c
+      INNER JOIN whatsapp_accounts wa ON wa.id = c.whatsapp_account_id
+      WHERE wa.business_id = l.business_id
+        AND regexp_replace(c.user_phone, '\\D', '', 'g') = 
+            regexp_replace(l.phone, '\\D', '', 'g')
+      ORDER BY c.last_message_at DESC NULLS LAST
+      LIMIT 1
+    ) conv ON true
+    WHERE l.id = $1
+      AND l.business_id = $2`;
+
+  const result = await db.query(q, [leadId, businessId]);
+  return result.rows[0] || null;
+}
+
+/**
+ * Alias para updateLeadByIdAndBusiness con soporte a notes directos.
+ * @param {string} leadId - Id del lead.
+ * @param {string} businessId - Id del negocio.
+ * @param {{ name?: string|null, status?: string }} updates - Campos a actualizar.
+ * @returns {Promise<object|null>} Lead actualizado.
+ */
+async function updateLeadById(leadId, businessId, updates = {}) {
+  return updateLeadByIdAndBusiness(leadId, businessId, updates);
 }
 
 module.exports = {
@@ -336,5 +459,8 @@ module.exports = {
   closeLeadByBusinessAndPhone,
   upsertLeadFromConversationData,
   listLeadsByBusinessId,
-  updateLeadByIdAndBusiness
+  updateLeadByIdAndBusiness,
+  getLeadsWithConversationStatus,
+  getLeadWithConversationStatus,
+  updateLeadById
 };

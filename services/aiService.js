@@ -36,11 +36,20 @@ function formatFaq(settings = {}) {
   return formatted || '';
 }
 
-function buildSystemPrompt(businessName, settings = {}) {
+function buildSystemPrompt(businessName, settings = {}, lead = {}) {
   const services = formatServices(settings);
   const faq = formatFaq(settings);
+  const leadContext = lead && lead.name
+    ? `Cliente identificado: ${lead.name}`
+    : 'Cliente aún no identificado';
+  const notesContext = lead && lead.notes
+    ? `Info capturada: ${lead.notes}`
+    : '';
 
   return `Eres el asistente virtual de ${businessName}.
+
+${leadContext}
+${notesContext}
 
 DESCRIPCIÓN DEL NEGOCIO:
 ${settings.business_description || ''}
@@ -108,8 +117,8 @@ function safeParseJson(content) {
   }
 }
 
-async function generateBotResponse(businessName, conversationHistory, userMessage, settings = {}) {
-  const systemPrompt = buildSystemPrompt(businessName, settings);
+async function generateBotResponse(businessName, conversationHistory, userMessage, settings = {}, lead = {}) {
+  const systemPrompt = buildSystemPrompt(businessName, settings, lead);
 
   const messages = normalizeConversationMessages(conversationHistory);
   const normalizedUserMessage = String(userMessage || '').trim();

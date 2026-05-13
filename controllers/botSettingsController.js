@@ -1,5 +1,4 @@
 const botFlowService = require('../services/botFlowService');
-const { defaultAdminBotFlowNodes } = require('../db/models');
 const businessService = require('../services/businessService');
 const logger = require('../utils/logger');
 const { withAsyncHandler } = require('./asyncHandler');
@@ -25,7 +24,7 @@ const getBotSettings = withAsyncHandler(async (req, res) => {
 
   let flow = await botFlowService.getFlowByBusiness(businessId);
   if (!flow) {
-    flow = await botFlowService.saveFlow(businessId, defaultAdminBotFlowNodes);
+    flow = await botFlowService.saveFlow(businessId, []);
   }
 
   const previewNodes = replaceBusinessNameInNodes(flow?.nodes || [], business.name);

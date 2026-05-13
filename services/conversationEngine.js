@@ -1,23 +1,12 @@
 const settingsService = require('./settingsService');
 const conversationService = require('./conversationService');
+const leadService = require('./leadService');
 const businessService = require('./businessService');
 const { DEFAULT_BOT_MESSAGES } = require('./defaultMessages');
 const { generateBotResponse, extractClientData } = require('./aiService');
 const logger = require('../utils/logger');
 function buildFallbackResponse(settings) {
   return settings?.fallback_message || DEFAULT_BOT_MESSAGES.fallback_message;
-}
-
-function buildExtractionHistory(conversationHistory) {
-  if (!Array.isArray(conversationHistory)) return [];
-
-  return conversationHistory
-    .slice(-12)
-    .map((message) => ({
-      role: message.sender_type === 'customer' || message.direction === 'inbound' ? 'user' : 'assistant',
-      content: message.message_text || message.body || ''
-    }))
-    .filter((message) => String(message.content || '').trim().length > 0);
 }
 
 async function generateResponse(message, context, meta = {}) {
@@ -65,6 +54,7 @@ async function generateResponse(message, context, meta = {}) {
 
   let businessName = 'tu negocio';
   let settings = null;
+  let lead = null;
   try {
     const [business, loadedSettings] = await Promise.all([
       businessService.getById(businessId),
@@ -80,6 +70,18 @@ async function generateResponse(message, context, meta = {}) {
     });
   }
 
+  if (meta.phone) {
+    try {
+      lead = await leadService.findLeadByBusinessAndPhone(businessId, meta.phone);
+    } catch (err) {
+      logger.warn('lead_context_load_failed', {
+        businessId,
+        phone: meta.phone,
+        err: err && err.message ? err.message : err
+      });
+    }
+  }
+
   const conversationHistory = Array.isArray(context) ? context : [];
 
   logger.info('bot_engine_triggered', {
@@ -90,7 +92,7 @@ async function generateResponse(message, context, meta = {}) {
 
   let replyText = null;
   try {
-    replyText = await generateBotResponse(businessName, conversationHistory, message, settings || {});
+    replyText = await generateBotResponse(businessName, conversationHistory, message, settings || {}, lead || {});
   } catch (err) {
     logger.warn('groq_reply_failed', {
       businessId,
@@ -111,6 +113,18 @@ async function generateResponse(message, context, meta = {}) {
       return null;
     }
   })();
+
+  if (extractedLeadData && meta.phone) {
+    try {
+      lead = await leadService.upsertLeadFromConversationData(businessId, meta.phone, extractedLeadData);
+    } catch (leadErr) {
+      logger.error('lead_extraction_persist_failed', {
+        businessId,
+        phone: meta.phone,
+        err: leadErr && leadErr.message ? leadErr.message : leadErr
+      });
+    }
+  }
 
   return {
     replyText: replyText && replyText.trim() ? replyText.trim() : buildFallbackResponse(settings),

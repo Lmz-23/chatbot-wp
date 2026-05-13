@@ -96,6 +96,7 @@ app.use('/webhook', require('./routes/webhook'));
 app.use('/auth', require('./routes/auth'));
 app.use('/api', require('./routes/api-settings'));
 app.use('/api', require('./routes/api-business-profile'));
+app.use('/api', require('./routes/api-leads'));
 app.use('/api', require('./routes/api-users'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/admin/business', require('./routes/business-admin'));
