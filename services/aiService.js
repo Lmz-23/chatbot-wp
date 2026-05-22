@@ -39,12 +39,22 @@ function formatFaq(settings = {}) {
 function buildSystemPrompt(businessName, settings = {}, lead = {}) {
   const services = formatServices(settings);
   const faq = formatFaq(settings);
-  const leadContext = lead && lead.name
+  const hasName = !!(lead && lead.name);
+  const hasNotes = !!(lead && lead.notes);
+  const missingData = [];
+  if (!hasName) missingData.push('nombre del cliente');
+  if (!hasNotes) missingData.push('nombre del negocio y datos de contacto');
+
+  const leadContext = hasName
     ? `Cliente identificado: ${lead.name}`
     : 'Cliente aún no identificado';
-  const notesContext = lead && lead.notes
+  const notesContext = hasNotes
     ? `Info capturada: ${lead.notes}`
     : '';
+
+  const captureRule = hasName && hasNotes
+    ? 'Ya tienes todos los datos del cliente. NO vuelvas a pedir nombre ni información del negocio. Enfócate en resolver su consulta.'
+    : `Aún te falta capturar: ${missingData.join(', ')}. Cuando los tengas todos, confirma y di que un asesor se contactará.`;
 
   return `Eres el asistente virtual de ${businessName}.
 
@@ -76,10 +86,7 @@ REGLAS ESTRICTAS:
 - Cuando el cliente quiera contacto humano di SOLO:
   "Un asesor te contactará en breve."
 - Usa SOLO la información del contexto, nunca inventes datos
-- Tu objetivo es capturar: nombre del cliente,
-  nombre del negocio y datos de contacto
-- Cuando tengas esos datos confirma y di que un asesor
-  se contactará`;
+- ${captureRule}`;
 }
 
 function normalizeConversationMessages(conversationHistory) {

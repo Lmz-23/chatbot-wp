@@ -90,17 +90,6 @@ async function generateResponse(message, context, meta = {}) {
     status: conversationStatus
   });
 
-  let replyText = null;
-  try {
-    replyText = await generateBotResponse(businessName, conversationHistory, message, settings || {}, lead || {});
-  } catch (err) {
-    logger.warn('groq_reply_failed', {
-      businessId,
-      conversationId,
-      err: err && err.message ? err.message : err
-    });
-  }
-
   const extractedLeadData = await (async () => {
     try {
       return await extractClientData(conversationHistory);
@@ -116,14 +105,28 @@ async function generateResponse(message, context, meta = {}) {
 
   if (extractedLeadData && meta.phone) {
     try {
-      lead = await leadService.upsertLeadFromConversationData(businessId, meta.phone, extractedLeadData);
+      const updatedLead = await leadService.upsertLeadFromConversationData(businessId, meta.phone, extractedLeadData);
+      if (updatedLead && updatedLead.name) {
+        lead = updatedLead;
+      }
     } catch (leadErr) {
-      logger.error('lead_extraction_persist_failed', {
+      logger.warn('lead_extraction_persist_failed', {
         businessId,
         phone: meta.phone,
         err: leadErr && leadErr.message ? leadErr.message : leadErr
       });
     }
+  }
+
+  let replyText = null;
+  try {
+    replyText = await generateBotResponse(businessName, conversationHistory, message, settings || {}, lead || {});
+  } catch (err) {
+    logger.warn('groq_reply_failed', {
+      businessId,
+      conversationId,
+      err: err && err.message ? err.message : err
+    });
   }
 
   return {
