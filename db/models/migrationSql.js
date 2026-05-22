@@ -33,6 +33,9 @@ const migrateBusinessSettingsContextColumns = `
 DO $$
 BEGIN
   ALTER TABLE business_settings
+    ADD COLUMN IF NOT EXISTS assistant_name TEXT;
+
+  ALTER TABLE business_settings
     ADD COLUMN IF NOT EXISTS business_description TEXT;
 
   ALTER TABLE business_settings

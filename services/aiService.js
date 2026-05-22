@@ -36,57 +36,105 @@ function formatFaq(settings = {}) {
   return formatted || '';
 }
 
+function parseNotesForPrompt(notes) {
+  if (!notes) return '';
+
+  let parsed = null;
+
+  if (typeof notes === 'object' && !Array.isArray(notes)) {
+    parsed = notes;
+  } else if (typeof notes === 'string') {
+    try {
+      parsed = JSON.parse(notes);
+    } catch {
+      return String(notes).trim();
+    }
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return '';
+  }
+
+  const parts = [];
+  const businessName = typeof parsed.business_name === 'string' ? parsed.business_name.trim() : '';
+  const contact = typeof parsed.contact === 'string' ? parsed.contact.trim() : '';
+  const interest = typeof parsed.interest === 'string' ? parsed.interest.trim() : '';
+
+  if (businessName) parts.push(`Negocio: ${businessName}`);
+  if (contact) parts.push(`Contacto: ${contact}`);
+  if (interest) parts.push(`Interés: ${interest}`);
+
+  if (parts.length) {
+    return parts.join(' | ');
+  }
+
+  return String(notes).trim();
+}
+
 function buildSystemPrompt(businessName, settings = {}, lead = {}) {
   const services = formatServices(settings);
   const faq = formatFaq(settings);
+  const assistantName = String(settings.assistant_name || 'el asistente virtual').trim() || 'el asistente virtual';
   const hasName = !!(lead && lead.name);
-  const hasNotes = !!(lead && lead.notes);
+  const parsedNotes = parseNotesForPrompt(lead && lead.notes);
+  const hasBusinessName = Boolean(parsedNotes && String(parsedNotes).includes('Negocio:'));
   const missingData = [];
+
   if (!hasName) missingData.push('nombre del cliente');
-  if (!hasNotes) missingData.push('nombre del negocio y datos de contacto');
+  if (!hasBusinessName) missingData.push('nombre de su negocio');
 
-  const leadContext = hasName
-    ? `Cliente identificado: ${lead.name}`
-    : 'Cliente aún no identificado';
-  const notesContext = hasNotes
-    ? `Info capturada: ${lead.notes}`
-    : '';
+  const sections = [];
 
-  const captureRule = hasName && hasNotes
-    ? 'Ya tienes todos los datos del cliente. NO vuelvas a pedir nombre ni información del negocio. Enfócate en resolver su consulta.'
-    : `Aún te falta capturar: ${missingData.join(', ')}. Cuando los tengas todos, confirma y di que un asesor se contactará.`;
+  sections.push(`Eres ${assistantName} de ${businessName}.`);
+  sections.push('Tu estilo es cercano, directo y profesional. Como un buen vendedor: cálido sin ser informal, claro sin ser frío. Puedes usar máximo 1 emoji por mensaje cuando sea natural.');
 
-  return `Eres el asistente virtual de ${businessName}.
+  if (hasName) {
+    sections.push(`El cliente se llama ${lead.name}. No vuelvas a pedirle su nombre.`);
+  }
 
-${leadContext}
-${notesContext}
+  if (hasBusinessName) {
+    sections.push(`Su negocio es ${parsedNotes.replace(/^Negocio:\s*/i, '').split(' | ')[0]}. No vuelvas a preguntarlo.`);
+  }
 
-DESCRIPCIÓN DEL NEGOCIO:
-${settings.business_description || ''}
+  if (missingData.length > 0) {
+    sections.push('Obtén conversacionalmente: nombre del cliente y nombre de su negocio. Hazlo de forma natural, nunca como formulario.');
+  }
 
-SERVICIOS Y PRECIOS:
-${services}
+  sections.push('SOBRE EL NEGOCIO:');
+  sections.push(settings.business_description || '');
 
-HORARIOS:
-${settings.schedule || ''}
+  sections.push('SERVICIOS:');
+  sections.push(services);
 
-CONTACTO:
-${settings.contact_info || ''}
+  sections.push('HORARIOS:');
+  sections.push(settings.schedule || '');
 
-PREGUNTAS FRECUENTES:
-${faq}
+  sections.push('CONTACTO:');
+  sections.push(settings.contact_info || '');
 
-INSTRUCCIONES ESPECIALES:
-${settings.bot_instructions || ''}
+  if (faq) {
+    sections.push('PREGUNTAS FRECUENTES:');
+    sections.push(faq);
+  }
 
-REGLAS ESTRICTAS:
-- Responde SIEMPRE en español en máximo 3 oraciones
-- NUNCA inventes nombres de asesores o empleados
-- NUNCA finjas ser humano
-- Cuando el cliente quiera contacto humano di SOLO:
-  "Un asesor te contactará en breve."
-- Usa SOLO la información del contexto, nunca inventes datos
-- ${captureRule}`;
+  if (settings.bot_instructions && String(settings.bot_instructions).trim()) {
+    sections.push('INSTRUCCIONES DEL NEGOCIO:');
+    sections.push(settings.bot_instructions);
+  }
+
+  sections.push('REGLAS:');
+  sections.push('- Responde en máximo 3 oraciones');
+  sections.push('- Nunca inventes información del negocio');
+  sections.push('- Nunca menciones que eres una IA o bot a menos que te lo pregunten directamente');
+  sections.push('- Si el cliente pide hablar con una persona, responde: "Claro, en breve te contacta uno de nuestros asesores 👌"');
+  sections.push('- Responde solo lo que te preguntan, no listes todos los servicios de golpe');
+  sections.push('- Las instrucciones del negocio tienen prioridad sobre estas reglas generales');
+
+  if (missingData.length > 0) {
+    sections.push(`Aún te falta capturar: ${missingData.join(', ')}. Cuando los tengas todos, confirma y di que un asesor se contactará.`);
+  }
+
+  return sections.filter((section) => String(section || '').trim().length > 0).join('\n\n');
 }
 
 function normalizeConversationMessages(conversationHistory) {

@@ -1,10 +1,13 @@
 const MAX_MESSAGE_LENGTH = 2000;
 const MESSAGE_FIELDS = [
+  'assistant_name',
   'welcome_message',
   'pricing_message',
   'lead_capture_message',
   'fallback_message'
 ];
+
+const MAX_ASSISTANT_NAME_LENGTH = 120;
 
 function isUuid(value) {
   return typeof value === 'string'
@@ -68,6 +71,15 @@ function validateMessageFields(body) {
       return { error: { status: 400, body: { error: `${field} must be a string` } } };
     }
 
+    if (field === 'assistant_name' && value.length > MAX_ASSISTANT_NAME_LENGTH) {
+      return {
+        error: {
+          status: 400,
+          body: { error: `assistant_name exceeds ${MAX_ASSISTANT_NAME_LENGTH} characters` }
+        }
+      };
+    }
+
     if (value.length > MAX_MESSAGE_LENGTH) {
       return {
         error: {
@@ -83,6 +95,7 @@ function validateMessageFields(body) {
 
 function buildSettingsUpdates(body) {
   return {
+    assistant_name: body.assistant_name,
     welcome_message: body.welcome_message,
     pricing_message: body.pricing_message,
     lead_capture_message: body.lead_capture_message,

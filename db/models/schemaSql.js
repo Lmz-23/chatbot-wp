@@ -110,6 +110,7 @@ CREATE INDEX IF NOT EXISTS idx_leads_business_created_at
 const createBusinessSettingsTable = `
 CREATE TABLE IF NOT EXISTS business_settings (
   business_id UUID PRIMARY KEY REFERENCES businesses(id) ON DELETE CASCADE,
+  assistant_name TEXT,
   welcome_message TEXT,
   pricing_message TEXT,
   lead_capture_message TEXT,

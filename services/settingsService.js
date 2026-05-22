@@ -1,6 +1,7 @@
 const db = require('../db');
 
 const DEFAULT_SETTINGS = {
+  assistant_name: '',
   welcome_message: 'Hola! Soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?',
   pricing_message: 'Con gusto. Nuestros precios dependen del servicio y volumen. Si quieres, te comparto una cotización rápida.',
   lead_capture_message: 'Perfecto, uno de nuestros asesores te contactará pronto. ¡Gracias por tu interés!',
@@ -34,6 +35,7 @@ async function createDefaultSettings(businessId) {
   const q = `
     INSERT INTO business_settings (
       business_id,
+      assistant_name,
       welcome_message,
       pricing_message,
       lead_capture_message,
@@ -45,11 +47,12 @@ async function createDefaultSettings(businessId) {
       bot_instructions,
       faq
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11::jsonb)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12::jsonb)
     ON CONFLICT (business_id) DO NOTHING`;
 
   await db.query(q, [
     businessId,
+    DEFAULT_SETTINGS.assistant_name,
     DEFAULT_SETTINGS.welcome_message,
     DEFAULT_SETTINGS.pricing_message,
     DEFAULT_SETTINGS.lead_capture_message,
@@ -93,22 +96,24 @@ async function updateSettings(businessId, updates = {}) {
   const q = `
     UPDATE business_settings
     SET
-      welcome_message = COALESCE($2, welcome_message),
-      pricing_message = COALESCE($3, pricing_message),
-      lead_capture_message = COALESCE($4, lead_capture_message),
-      fallback_message = COALESCE($5, fallback_message),
-      business_description = COALESCE($6, business_description),
-      services = COALESCE($7::jsonb, services),
-      schedule = COALESCE($8, schedule),
-      contact_info = COALESCE($9, contact_info),
-      bot_instructions = COALESCE($10, bot_instructions),
-      faq = COALESCE($11::jsonb, faq),
+      assistant_name = COALESCE($2, assistant_name),
+      welcome_message = COALESCE($3, welcome_message),
+      pricing_message = COALESCE($4, pricing_message),
+      lead_capture_message = COALESCE($5, lead_capture_message),
+      fallback_message = COALESCE($6, fallback_message),
+      business_description = COALESCE($7, business_description),
+      services = COALESCE($8::jsonb, services),
+      schedule = COALESCE($9, schedule),
+      contact_info = COALESCE($10, contact_info),
+      bot_instructions = COALESCE($11, bot_instructions),
+      faq = COALESCE($12::jsonb, faq),
       updated_at = now()
     WHERE business_id = $1
     RETURNING *`;
 
   const result = await db.query(q, [
     businessId,
+    updates.assistant_name ?? null,
     updates.welcome_message ?? null,
     updates.pricing_message ?? null,
     updates.lead_capture_message ?? null,
