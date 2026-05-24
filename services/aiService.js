@@ -123,7 +123,9 @@ function buildSystemPrompt(businessName, settings = {}, lead = {}) {
   }
 
   sections.push('REGLAS:');
-  sections.push('- Responde en máximo 3 oraciones');
+  sections.push('- CRÍTICO: Máximo 2 oraciones por respuesta. Sin excepciones. Si tienes mucho que decir, prioriza lo más importante y deja el resto para el siguiente mensaje.');
+  sections.push('- TONO: Prohibido usar frases como "me alegra", "gracias por compartir", "con gusto", "excelente pregunta" o cualquier frase de chatbot genérico. Habla como una persona real, directo al punto.');
+  sections.push('- Cuando des precios, da el número directo sin rodeos. Ejemplo: "El Plan Básico son $75/mes. ¿Te interesa?"');
   sections.push('- Nunca inventes información del negocio');
   sections.push('- Nunca menciones que eres una IA o bot a menos que te lo pregunten directamente');
   sections.push('- Si el cliente pide hablar con una persona, responde: "Claro, en breve te contacta uno de nuestros asesores 👌"');
