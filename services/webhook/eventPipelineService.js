@@ -7,6 +7,7 @@ function createEventPipelineService(overrides = {}) {
   const contextService = overrides.contextService || require('../contextService');
   const conversationEngine = overrides.conversationEngine || require('../conversationEngine');
   const leadService = overrides.leadService || require('../leadService');
+  const { extractClientData } = overrides.aiService || require('../aiService');
   const normalizePhone = overrides.normalizePhone || require('../../utils/phone').normalizePhone;
   const logger = overrides.logger || require('../../utils/logger');
   const createDedupeRegistry = overrides.createDedupeRegistry
@@ -146,6 +147,32 @@ function createEventPipelineService(overrides = {}) {
       leadStatus: reopenResult?.status
     });
 
+    const context = await contextService.getConversationContext(conversation.id);
+    const extractedLeadData = await (async () => {
+      try {
+        return await extractClientData(context);
+      } catch (err) {
+        logger.warn('lead_extraction_failed', {
+          businessId: business.id,
+          conversationId: conversation.id,
+          err: err && err.message ? err.message : err
+        });
+        return null;
+      }
+    })();
+
+    if (extractedLeadData) {
+      try {
+        await leadService.upsertLeadFromConversationData(business.id, normalizedFromPhone, extractedLeadData);
+      } catch (leadErr) {
+        logger.error('lead_extraction_persist_failed', {
+          businessId: business.id,
+          phone: normalizedFromPhone,
+          err: leadErr && leadErr.message ? leadErr.message : leadErr
+        });
+      }
+    }
+
     if (conversation.status !== 'bot') {
       logger.info('bot_reply_skipped_non_bot_status', {
         businessId: business.id,
@@ -156,11 +183,11 @@ function createEventPipelineService(overrides = {}) {
       return;
     }
 
-    const context = await contextService.getConversationContext(conversation.id);
     const engineResult = await conversationEngine.generateResponse(incomingText, context, {
       businessId: business.id,
       conversationId: conversation.id,
-      phone: normalizedFromPhone
+      phone: normalizedFromPhone,
+      precomputedExtractedLeadData: extractedLeadData
     });
 
     if (engineResult.shouldActivateConversation) {
@@ -205,22 +232,6 @@ function createEventPipelineService(overrides = {}) {
       direction: 'outbound',
       status: 'sent'
     });
-
-    if (engineResult.extractedLeadData) {
-      try {
-        await leadService.upsertLeadFromConversationData(
-          business.id,
-          normalizedFromPhone,
-          engineResult.extractedLeadData
-        );
-      } catch (leadErr) {
-        logger.error('lead_extraction_persist_failed', {
-          businessId: business.id,
-          phone: normalizedFromPhone,
-          err: leadErr && leadErr.message ? leadErr.message : leadErr
-        });
-      }
-    }
 
     if (engineResult.usedFlow && engineResult.nextNodeId) {
       try {

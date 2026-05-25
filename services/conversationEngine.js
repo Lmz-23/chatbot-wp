@@ -12,6 +12,7 @@ function buildFallbackResponse(settings) {
 async function generateResponse(message, context, meta = {}) {
   const conversationId = meta.conversationId || null;
   const businessId = meta.businessId || null;
+  const precomputedExtractedLeadData = meta.precomputedExtractedLeadData || null;
   let conversationStatus = null;
 
   let currentNodeId = 'start';
@@ -90,7 +91,7 @@ async function generateResponse(message, context, meta = {}) {
     status: conversationStatus
   });
 
-  const extractedLeadData = await (async () => {
+  const extractedLeadData = precomputedExtractedLeadData || await (async () => {
     try {
       return await extractClientData(conversationHistory);
     } catch (err) {
