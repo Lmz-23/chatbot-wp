@@ -170,11 +170,9 @@ function sanitizeExtractedLeadData(parsed, conversationHistory) {
 
   const messages = normalizeConversationMessages(conversationHistory);
   const userTexts = messages.filter((message) => message.role === 'user').map((message) => String(message.content || ''));
-  const userTextBlob = userTexts.join(' \n ');
 
   let clientName = normalizeText(parsed.client_name);
   let businessName = normalizeText(parsed.business_name);
-  const contact = normalizeText(parsed.contact);
   const interest = normalizeText(parsed.interest);
 
   const hasClientSignal = userTexts.some((text) => hasClientNameSignal(text));
@@ -200,14 +198,13 @@ function sanitizeExtractedLeadData(parsed, conversationHistory) {
     businessName = '';
   }
 
-  if (!clientName && !businessName && !contact && !interest) {
+  if (!clientName && !businessName && !interest) {
     return null;
   }
 
   return {
     client_name: clientName || null,
     business_name: businessName || null,
-    contact: contact || null,
     interest: interest || null
   };
 }
@@ -272,7 +269,7 @@ async function extractClientData(conversationHistory) {
       {
         role: 'system',
         content: [
-          'Extrae datos desde la conversacion y devuelve SOLO un JSON valido con las claves client_name, business_name, contact e interest.',
+          'Extrae datos desde la conversacion y devuelve SOLO un JSON valido con las claves client_name, business_name e interest.',
           'Reglas estrictas:',
           '- client_name solo si el usuario dijo su nombre de forma explicita o inequívoca, por ejemplo: "me llamo", "mi nombre es", "soy Carlos".',
           '- business_name solo si el usuario dijo el nombre de su negocio de forma explicita o inequívoca, por ejemplo: "mi negocio es", "vendo en", "mi empresa es".',

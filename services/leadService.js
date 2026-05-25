@@ -22,12 +22,16 @@ function parseLeadNotes(notes) {
 
 function buildLeadNotes(existingNotes, incomingData = {}) {
   const existing = parseLeadNotes(existingNotes);
+  delete existing.contact;
+  delete existing.contact_name;
   const normalizedIncoming = Object.fromEntries(
     Object.entries(incomingData).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
   );
 
   const clientName = typeof normalizedIncoming.client_name === 'string' ? normalizedIncoming.client_name.trim() : '';
   const businessName = typeof normalizedIncoming.business_name === 'string' ? normalizedIncoming.business_name.trim() : '';
+  delete normalizedIncoming.contact;
+  delete normalizedIncoming.contact_name;
 
   if (clientName && businessName && clientName.toLowerCase() === businessName.toLowerCase()) {
     normalizedIncoming.client_name = null;
@@ -350,7 +354,6 @@ async function upsertLeadFromConversationData(businessId, phone, data = {}) {
   const nextNotes = buildLeadNotes(existingLead ? existingLead.notes : null, {
     client_name: sanitizedClientName || null,
     business_name: businessName || null,
-    contact: contact || null,
     interest: interest || null
   });
 
