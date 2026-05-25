@@ -21,10 +21,22 @@ function parseLeadNotes(notes) {
 }
 
 function buildLeadNotes(existingNotes, incomingData = {}) {
+  const existing = parseLeadNotes(existingNotes);
+  const normalizedIncoming = Object.fromEntries(
+    Object.entries(incomingData).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
+  );
+
+  const clientName = typeof normalizedIncoming.client_name === 'string' ? normalizedIncoming.client_name.trim() : '';
+  const businessName = typeof normalizedIncoming.business_name === 'string' ? normalizedIncoming.business_name.trim() : '';
+
+  if (clientName && businessName && clientName.toLowerCase() === businessName.toLowerCase()) {
+    normalizedIncoming.client_name = null;
+  }
+
   const merged = {
-    ...parseLeadNotes(existingNotes),
+    ...existing,
     ...Object.fromEntries(
-      Object.entries(incomingData).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
+      Object.entries(normalizedIncoming).filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
     )
   };
 
@@ -329,10 +341,14 @@ async function upsertLeadFromConversationData(businessId, phone, data = {}) {
   const contact = typeof data.contact === 'string' ? data.contact.trim() : '';
   const interest = typeof data.interest === 'string' ? data.interest.trim() : '';
 
+  const sanitizedClientName = clientName && businessName && clientName.toLowerCase() === businessName.toLowerCase()
+    ? ''
+    : clientName;
+
   const existingLead = await findLeadByBusinessAndPhone(businessId, normalizedPhone);
-  const nextName = existingLead && existingLead.name ? existingLead.name : (clientName || null);
+  const nextName = existingLead && existingLead.name ? existingLead.name : (sanitizedClientName || null);
   const nextNotes = buildLeadNotes(existingLead ? existingLead.notes : null, {
-    client_name: clientName || null,
+    client_name: sanitizedClientName || null,
     business_name: businessName || null,
     contact: contact || null,
     interest: interest || null

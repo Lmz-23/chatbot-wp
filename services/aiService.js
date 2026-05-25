@@ -151,6 +151,67 @@ function normalizeConversationMessages(conversationHistory) {
     .filter((message) => String(message.content || '').trim().length > 0);
 }
 
+function normalizeText(value) {
+  return String(value || '').trim();
+}
+
+function hasBusinessSignal(text) {
+  const normalized = String(text || '').toLowerCase();
+  return /\b(mi negocio es|somos|vendemos|vendo|mi empresa es|se llama|es una empresa|es un negocio|trabajo en)\b/i.test(normalized);
+}
+
+function hasClientNameSignal(text) {
+  const normalized = String(text || '').toLowerCase();
+  return /\b(mi nombre es|me llamo|soy|llamame|llámame)\b/i.test(normalized);
+}
+
+function sanitizeExtractedLeadData(parsed, conversationHistory) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+
+  const messages = normalizeConversationMessages(conversationHistory);
+  const userTexts = messages.filter((message) => message.role === 'user').map((message) => String(message.content || ''));
+  const userTextBlob = userTexts.join(' \n ');
+
+  let clientName = normalizeText(parsed.client_name);
+  let businessName = normalizeText(parsed.business_name);
+  const contact = normalizeText(parsed.contact);
+  const interest = normalizeText(parsed.interest);
+
+  const hasClientSignal = userTexts.some((text) => hasClientNameSignal(text));
+  const hasBusinessSignalInUserText = userTexts.some((text) => hasBusinessSignal(text));
+
+  if (clientName && !hasClientSignal) {
+    clientName = '';
+  }
+
+  if (businessName && !hasBusinessSignalInUserText) {
+    businessName = '';
+  }
+
+  if (clientName && businessName && clientName.toLowerCase() === businessName.toLowerCase()) {
+    clientName = '';
+  }
+
+  if (clientName && /\b(negocio|empresa|tienda|local|servicio|servicios|ventas|viveres|viveres?)\b/i.test(clientName)) {
+    clientName = '';
+  }
+
+  if (businessName && /\b(yo soy|mi nombre|me llamo|soy)\b/i.test(businessName)) {
+    businessName = '';
+  }
+
+  if (!clientName && !businessName && !contact && !interest) {
+    return null;
+  }
+
+  return {
+    client_name: clientName || null,
+    business_name: businessName || null,
+    contact: contact || null,
+    interest: interest || null
+  };
+}
+
 function safeParseJson(content) {
   if (typeof content !== 'string') return null;
 
@@ -210,7 +271,16 @@ async function extractClientData(conversationHistory) {
     messages: [
       {
         role: 'system',
-        content: 'Extrae datos del cliente desde la conversacion y devuelve SOLO un JSON valido con las claves client_name, business_name, contact e interest. Usa null cuando un dato no exista. No agregues texto extra.'
+        content: [
+          'Extrae datos desde la conversacion y devuelve SOLO un JSON valido con las claves client_name, business_name, contact e interest.',
+          'Reglas estrictas:',
+          '- client_name solo si el usuario dijo su nombre de forma explicita o inequívoca, por ejemplo: "me llamo", "mi nombre es", "soy Carlos".',
+          '- business_name solo si el usuario dijo el nombre de su negocio de forma explicita o inequívoca, por ejemplo: "mi negocio es", "vendo en", "mi empresa es".',
+          '- Nunca copies business_name dentro de client_name ni al revés.',
+          '- Nunca infieras nombres a partir de la conversación si no fueron dichos de forma directa.',
+          '- Usa null cuando un dato no exista.',
+          '- No agregues texto extra.'
+        ].join('\n')
       },
       ...messages
     ],
@@ -220,23 +290,7 @@ async function extractClientData(conversationHistory) {
 
   const content = completion.choices[0]?.message?.content || '';
   const parsed = safeParseJson(content);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-
-  const clientName = typeof parsed.client_name === 'string' ? parsed.client_name.trim() : '';
-  const businessName = typeof parsed.business_name === 'string' ? parsed.business_name.trim() : '';
-  const contact = typeof parsed.contact === 'string' ? parsed.contact.trim() : '';
-  const interest = typeof parsed.interest === 'string' ? parsed.interest.trim() : '';
-
-  if (!clientName && !businessName && !contact && !interest) {
-    return null;
-  }
-
-  return {
-    client_name: clientName || null,
-    business_name: businessName || null,
-    contact: contact || null,
-    interest: interest || null
-  };
+  return sanitizeExtractedLeadData(parsed, conversationHistory);
 }
 
 module.exports = { buildSystemPrompt, generateBotResponse, extractClientData };
