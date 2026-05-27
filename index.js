@@ -34,14 +34,21 @@ function normalizeOrigin(origin) {
     .replace(/\/+$/, '');
 }
 
+function getOriginHost(origin) {
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
 function buildAllowedOrigins() {
   const fromEnv = String(process.env.FRONTEND_URL || '')
     .split(',')
     .map((origin) => normalizeOrigin(origin))
     .filter(Boolean);
 
-  // Always allow production frontend + localhost for development
-  // (even if NODE_ENV is not strictly 'production', e.g., ngrok or staging)
+  // Allow production frontend + common preview/tunnel hosts.
   const defaults = [
     'https://chatbot-wp-frontend.vercel.app', // Production frontend
     'http://localhost:3000',
@@ -49,6 +56,21 @@ function buildAllowedOrigins() {
   ];
 
   return new Set([...defaults, ...fromEnv]);
+}
+
+function isAllowedOrigin(origin, allowedOrigins) {
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (!normalizedOrigin) return false;
+
+  if (allowedOrigins.has(normalizedOrigin)) return true;
+
+  const host = getOriginHost(normalizedOrigin);
+  if (!host) return false;
+
+  if (host.endsWith('.vercel.app') || host === 'vercel.app') return true;
+  if (host.endsWith('.ngrok-free.dev') || host.endsWith('.ngrok.app')) return true;
+
+  return false;
 }
 
 const allowedOrigins = buildAllowedOrigins();
@@ -66,8 +88,7 @@ app.use(
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const normalizedOrigin = normalizeOrigin(origin);
-  const isAllowed = normalizedOrigin && allowedOrigins.has(normalizedOrigin);
+  const isAllowed = isAllowedOrigin(origin, allowedOrigins);
 
   if (isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin);
